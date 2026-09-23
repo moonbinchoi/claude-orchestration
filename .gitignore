@@ -1,0 +1,7 @@
+# whitelist: 기본은 전부 제외, 기기 간에 옮길 것만 허용한다
+*
+!.gitignore
+!README.md
+!ORCHESTRATION.md
+!agents/
+!agents/*.md
