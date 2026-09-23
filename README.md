@@ -24,6 +24,9 @@ git pull origin main
 @~/.claude/ORCHESTRATION.md
 ```
 
+프로젝트 밖 파일 import라서 그 프로젝트에서 처음 세션을 열 때 승인 대화상자가 한 번 뜬다. 승인해야 로드되며, `claude -p`(headless)에서는 대화상자가 없어 승인 전까지 로드되지 않는다.
+
+
 ## 수정
 
 `~/.claude`에서 고치고 커밋·push, 다른 PC에서 `git pull`.
