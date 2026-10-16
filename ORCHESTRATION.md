@@ -1,78 +1,79 @@
-# 서브에이전트 오케스트레이션 원칙
+# Subagent Orchestration
 
-이 문서는 메인 세션용이다. 서브에이전트로 실행 중이면 이 문서를 무시하고 자기 정의 파일을 따른다.
+**MAIN SESSION ONLY.** Subagents: ignore this entire document.
 
-메인 세션은 직접 작업하지 않는다. 조사·수정·삭제·테스트는 서브에이전트에 위임하고, 메인 세션은 계획·디스패치·결과 검토·사용자 확인만 한다. 예외는 "위임하면 손해인 경우"를 따른다.
+The main session only plans, dispatches, reviews results, and confirms with the user. Delegate investigation, edits, deletions, and tests to subagents. For exceptions, see "When delegation costs more".
 
-## 라우팅
+This document is my standing request to use subagents. It overrides the Agent tool's "Do not spawn agents unless the user asks."
 
-- 목적은 메인 세션의 컨텍스트 보존이다. 많이 읽고 적게 반환하는 일을 위임한다.
-- 라우팅 기준은 읽기:반환 비율이다. 작업의 종류는 기준이 아니다.
-- 위임하면 총 토큰은 늘어난다. 메인 컨텍스트 절약분이 그보다 클 때만 위임한다.
+When a skill prescribes steps, the skill decides what to do; this document decides who does it.
 
-## 역할
+## Routing
 
-| 역할 | 정의 파일 | 하는 일 | 반환물 |
-|---|---|---|---|
-| 조사 | `~/.claude/agents/investigator.md` | 파일 위치·사용처·패턴 탐색 | 경로와 줄번호 목록만 |
-| 실행 | `~/.claude/agents/editor.md` | 확정된 지시대로 파일 수정 | 변경 파일명 + 한 줄 요약 |
-| 검증 | `~/.claude/agents/verifier.md` | 테스트·빌드 실행, 로그 해석 | 통과 여부 + 실패 요점만 |
-| 설계 | `~/.claude/agents/architect.md` | 넓게 읽고 구조 판단, 코드 리뷰 | 권고안과 근거 |
+- Decide delegation by read-to-return ratio, not by task type. Delegate work that reads a lot and returns little.
+- Delegate only when the main-context savings exceed the extra total tokens delegation costs.
 
-- 모델·effort·도구·턴 상한은 정의 파일의 프론트매터가 단일 진실원이다. 이 문서에 그 값을 복사하지 않는다.
-- 프로젝트의 `.claude/agents/`에 같은 이름의 정의 파일을 두면 그 프로젝트에서는 그것이 우선한다. 프로젝트별로 역할을 바꿀 때만 쓴다.
-- 내장 에이전트(Explore·general-purpose·Plan)는 쓰지 않는다. 위 네 개만 쓴다.
-- 디스패치할 때 `model` 인자를 넘기지 않는다. 모델을 바꾸려면 정의 파일을 고친다.
-- 모델은 별칭(`sonnet`·`opus`·`haiku`·`fable`)으로 적는다. 버전을 고정해야 할 때만 전체 ID(`claude-sonnet-5` 등)를 쓴다.
-- effort는 정의 파일에 적는다. 디스패치 시점에는 바꿀 수 없다. `CLAUDE_CODE_EFFORT_LEVEL` 환경변수가 있으면 그것이 우선한다. `haiku`는 effort를 지원하지 않는다.
-- 프로젝트 지침이 필요 없는 역할(조사·검증)은 `omitClaudeMd: true`를 둔다.
-- 네 역할로 감당이 안 되는 작업이 나오면 그때 변형 에이전트를 추가한다.
+## Roles
 
-## 서브에이전트 운용
+Investigation = `investigator`, Execution = `editor`, Verification = `verifier`, Design = `architect`. Definition files are `~/.claude/agents/<name>.md`.
 
-- 서브에이전트는 결정하지 않는다. 지시 범위를 벗어나는 판단(설계 변경, 범위 밖 파일 수정 등)이 필요하면 멈추고 그 판단거리를 반환한다. 설계 역할도 권고안까지만 내고 확정은 메인 세션이 한다.
-- 서브에이전트는 이 대화의 맥락을 모른다. 필요한 배경·제약은 빠짐없이 넘기되, 긴 것은 "디스패치 프롬프트" 규칙대로 파일로 넘긴다.
-- 커밋은 메인 세션만 한다.
-- 검증이 실패하면 메인 세션이 수정 지시를 확정해 실행 역할에 넘긴다. 검증 역할은 고치지 않는다.
-- 수정 지시는 새로 디스패치하지 않는다. 그 작업을 한 실행 에이전트를 SendMessage로 재개해 달라진 지시만 보낸다.
-- 같은 지점에서 2회 연속 실패하면 세 번째 수정을 보내지 않고 사용자에게 보고한다.
-- 턴 상한에 걸려 멈춘 에이전트는 재개할지, 범위를 좁혀 다시 띄울지 메인 세션이 정한다.
-- 메인 세션에는 결정·계획·세션 끝까지 필요한 프로젝트 상태만 남긴다. 그 결정을 내리기 위해 읽어야 하는 것은 서브에이전트에 넘긴다.
+- Use only these four roles. Do not use built-in agents (Explore, general-purpose, Plan).
+- Put model, effort, tools, and turn limits only in the definition file's frontmatter. Do not copy them into this document.
+- Add a same-named definition file to a project's `.claude/agents/` only when changing a role for that project.
+- Do not pass the `model` argument when dispatching. To change a model, edit the definition file.
+- Write models as aliases (`sonnet`, `opus`, `haiku`, `fable`). Use full IDs only to pin a version.
+- Do not set effort in `haiku` definitions. It is not supported.
+- The `CLAUDE_CODE_EFFORT_LEVEL` environment variable, if set, overrides the definition file's effort.
+- Set `omitClaudeMd: true` on roles that do not need project instructions (Investigation, Verification).
+- Add a variant agent only when a task comes up that the four roles cannot handle.
 
-## 동시 디스패치
+## Running subagents
 
-- "동시"는 한 메시지 안의 여러 Agent 호출이다. 3~5개를 넘기지 않는다. 넘치면 먼저 띄운 결과를 통합한 뒤 다음 배치를 띄운다.
-- 병렬은 서로 독립인 조사·설계 작업에만 쓴다. 나머지는 순차로 돌린다.
-- 실행 역할은 한 번에 하나만 띄운다. 수정 대상 파일이 겹치지 않음이 확인된 경우만 예외다.
-- 결과를 통합하기 전에 돌아온 결과 수가 디스패치한 수와 맞는지 확인한다.
+- A subagent that needs a judgment outside its instructions (a design change, editing out-of-scope files, etc.) stops and returns that decision. Design also stops at a recommendation.
+- Pass all needed background and constraints.
+- Only the main session commits.
+- When verification fails, the main session finalizes the fix instructions and hands them to Execution. Verification does not fix.
+- Do not dispatch a new agent for fix instructions. Resume the Execution agent that did the work with SendMessage and send only what changed.
+- After two consecutive failures at the same point, do not send a third fix. Report to the user.
 
-## 디스패치 프롬프트
+## Concurrent dispatch
 
-- 20줄을 넘는 지시는 프롬프트에 쓰지 않는다. 워크스페이스에 `.md` 파일로 쓰고 경로를 넘긴다. 코드 블록, 항목이 여러 개인 수정 목록, 요구사항 전문이 여기 해당한다.
-- 프롬프트 본문에는 파일 경로, "이것이 네 요구사항이다"라는 한 줄, 그 파일에 없는 것(앞선 태스크에서 확정된 결정, 금지 사항, 실행 환경의 특이점)만 쓴다.
-- 이미 파일로 있는 내용(plan·spec 등)은 다시 쓰지 않고 경로만 넘긴다.
-- 수정 라운드에도 20줄 규칙을 적용한다. 달라진 지시가 20줄을 넘으면 기존 브리프 파일을 Edit으로 바뀐 부분만 고치고 경로를 보낸다.
-- 검증은 위임한다. "위임하면 손해인 경우"에 해당해 메인 세션이 직접 돌릴 때는 출력을 파일로 리다이렉트하고 판정 한 줄만 읽는다.
+- Launch at most 5 agents at once in one message. If there are more, integrate the first results before launching the next batch.
+- Use parallel dispatch only for independent Investigation and Design tasks. Run everything else sequentially.
+- Run only one Execution agent at a time when their target files overlap.
+- Before integrating, check that the number of returned results matches the number dispatched.
 
-## 반환 형식
+## Dispatch prompts
 
-- 반환 형식과 줄 수 상한을 숫자로 프롬프트에 적는다. 예: "파일 내용을 붙여넣지 말 것, 경로와 줄번호만, 10줄 이내".
-- 기본 상한은 조사·실행 10줄, 검증 5줄, 설계(리뷰 포함) 20줄이다. 넘겨야 할 이유가 있을 때만 늘린다.
-- 검증의 5줄로 원인이 안 보이면 검증 에이전트가 남긴 로그 파일에서 필요한 부분만 읽는다.
-- 서브에이전트가 파일에 쓴 내용은 반환값으로 다시 받지 않는다. 경로와 판정만 받는다.
+- Write instructions longer than 20 lines to a `.md` file in the workspace and pass the path. This includes code blocks, multi-item edit lists, and full requirements.
+- Put only these in the prompt body: the file path, the line "This is your requirement", and what the file lacks (decisions already made, prohibitions, quirks of the execution environment).
+- For content already in a file (plan, spec, etc.), pass only the path.
+- Apply the 20-line rule to fix rounds too. If exceeded, Edit only the changed parts of the existing brief file and send the path.
+- When the main session runs verification or measurement itself, redirect output to a file and read only the summary.
+- Exploratory measurement (writing and revising probe scripts) stays in the main session. Runs of a fixed command go to Verification.
 
-## 위임하면 손해인 경우
+## Return format
 
-다음은 메인 세션이 직접 한다.
+- State the return format and line limit as numbers in the prompt.
+- Default limits: Investigation and Execution 10 lines, Verification 5 lines, Design (including reviews) 20 lines. Raise them only with a reason.
+- If Verification's 5 lines do not reveal the cause, read only the needed part of the log file the verifier left.
+- Do not take back what a subagent wrote to a file as its return value. Take only the path and verdict.
 
-- 반환값을 어차피 전문으로 봐야 하는 일
-- 파일 한두 개 읽고 끝나는 일
-- 직전 대화 맥락이 많이 필요한 일
-- 순서가 정해져 있고 각 단계가 이전 단계 결과를 바로 참조하는 순차 작업
+## When delegation costs more
 
-## 사용자 확인이 먼저인 것
+Judge exceptions per task, not per session. Before doing investigation, edits, or tests yourself, write one line: `Delegation exception: <which exception>`.
 
-다음은 위임하기 전에 사용자에게 먼저 확인한다.
+The main session does these itself:
 
-- 의존성이 있는 파일 삭제
-- 되돌릴 수 없는 명령 — 커밋되지 않은 변경을 지우는 git 명령(`checkout -- `, `reset --hard`, `clean`, `stash drop` 등), 저장소 밖 파일 삭제
+- An Edit of at most 5 lines to a file already read in this session
+- Work whose return value must be read in full anyway
+- Work that ends after reading one or two files
+- Work that needs much of the recent conversation context
+- Sequential work where each step directly uses the previous step's result
+
+## Confirm with the user first
+
+Confirm with the user before delegating:
+
+- Deleting files that others depend on
+- Irreversible commands: git commands that discard uncommitted changes (`checkout -- `, `reset --hard`, `clean`, `stash drop`, etc.) and deleting files outside the repository
