@@ -12,6 +12,7 @@ When a skill prescribes steps, the skill decides what to do; this document decid
 
 - Decide delegation by read-to-return ratio, not by task type. Delegate work that reads a lot and returns little.
 - Delegate only when the main-context savings exceed the extra total tokens delegation costs.
+- Measure WebFetch and WebSearch by the text they return, not the page size.
 
 ## Roles
 
@@ -35,6 +36,7 @@ Investigation = `investigator`, Execution = `editor`, Verification = `verifier`,
 - When verification fails, the main session finalizes the fix instructions and hands them to Execution. Verification does not fix.
 - Do not dispatch a new agent for fix instructions. Resume the Execution agent that did the work with SendMessage and send only what changed.
 - After two consecutive failures at the same point, do not send a third fix. Report to the user.
+- To follow up on an Investigation result, resume that agent with SendMessage. Do not redo its reads or refetch URLs it already read.
 
 ## Concurrent dispatch
 
@@ -50,7 +52,7 @@ Investigation = `investigator`, Execution = `editor`, Verification = `verifier`,
 - For content already in a file (plan, spec, etc.), pass only the path.
 - Apply the 20-line rule to fix rounds too. If exceeded, Edit only the changed parts of the existing brief file and send the path.
 - When the main session runs verification or measurement itself, redirect output to a file and read only the summary.
-- Exploratory measurement (writing and revising probe scripts) stays in the main session. Runs of a fixed command go to Verification.
+- Exploratory measurement and one-off commands whose short output you need in full stay in the main session. Repeated runs of a fixed command that only need pass/fail go to Verification.
 
 ## Return format
 
@@ -61,14 +63,14 @@ Investigation = `investigator`, Execution = `editor`, Verification = `verifier`,
 
 ## When delegation costs more
 
-Judge exceptions per task, not per session. Before doing investigation, edits, or tests yourself, write one line: `Delegation exception: <which exception>`.
+Judge exceptions per task, not per session. Before the first direct tool call of a task, write one line: `Delegation exception: <which exception>`. One line covers the task, including exceptions a project defines.
 
 The main session does these itself:
 
 - An Edit of at most 5 lines to a file already read in this session
 - Work whose return value must be read in full anyway
 - Work that ends after reading one or two files
-- Work that needs much of the recent conversation context
+- Work whose brief would have to restate decisions that exist only in the conversation, not in any file
 - Sequential work where each step directly uses the previous step's result
 
 ## Confirm with the user first
