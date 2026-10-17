@@ -42,6 +42,8 @@ Claude는 `INSTALL.md` 절차를 따른다. 파일을 `~/.claude`에 복사하�
 
 이 저장소에서 고치고, 자체 점검이 `ok`인지 확인한 뒤 적용하고 커밋한다. `~/.claude`에서 직접 고쳤다면 이 저장소로 다시 복사해서 커밋한다.
 
+2026-10-17 이전 기록(옛 claude-config 저장소)은 병합 커밋으로 붙어 있다. 파일별로 보려면 `git log --full-history -- ORCHESTRATION.md`처럼 `--full-history`를 붙인다.
+
 ## 분석 스크립트
 
 모두 `~/.claude/projects/`의 transcript를 읽는다. 결과는 표준 출력으로 나온다.
