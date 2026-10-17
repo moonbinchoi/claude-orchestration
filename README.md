@@ -10,6 +10,7 @@ Claude Code 메인 세션이 작업을 서브에이전트에 위임하도록 하
 - `settings/hooks.json`: `~/.claude/settings.json`에 합칠 훅 등록 조각.
 - `docs/design/`: 설계 문서. `2026-10-17-orchestration-guard-design.md`는 가드 재설계 초안이며 아직 승인 전이다.
 - `analysis/`: 지난 세션 기록으로 위임 비용을 측정한 스크립트와 결과(`results/`).
+- `HANDOFF.md`: 다음 할 일.
 
 ## 이 PC에 적용
 
