@@ -16,10 +16,10 @@ curl | 13 | 0.15 | 0% | 411 2050 | 23%
 other:print(os.path.dirnam | 2 | 0.14 | 0% | 2312 2312 | 100%
 other:diff | 5 | 0.11 | 0% | 590 2154 | 40%
 other:e:/mouse/.venv/scrip | 26 | 0.11 | 0% | 170 476 | 0%
-other:$d='c:\users\skyra\. | 2 | 0.10 | 0% | 4454 4454 | 100%
+other:$d='c:\users\<user>\. | 2 | 0.10 | 0% | 4454 4454 | 100%
 other:f=agent-af5a4439bbb8 | 1 | 0.10 | 0% | 4773 4773 | 100%
 other:from | 9 | 0.08 | 0% | 280 918 | 0%
-other:c:/users/skyra/appda | 21 | 0.08 | 0% | 187 596 | 5%
+other:c:/users/<user>/appda | 21 | 0.08 | 0% | 187 596 | 5%
 node script | 13 | 0.08 | 0% | 250 1410 | 23%
 other:pythonutf8=1 | 7 | 0.06 | 0% | 266 1586 | 14%
 other:tr | 4 | 0.06 | 0% | 669 2099 | 25%
