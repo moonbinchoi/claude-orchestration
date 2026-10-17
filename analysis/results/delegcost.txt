@@ -1,0 +1,20 @@
+subagent run cost (USD) and wall time (s), by role|model with n>=5:
+  architect|claude-opus-5-5: n 61 | cost p50 0.2403 p90 0.5744 | time p50 119 p90 325
+  investigator|claude-haiku-4-5-20251001: n 33 | cost p50 0.0854 p90 0.1500 | time p50 72 p90 136
+  architect|claude-opus-5: n 29 | cost p50 0.2082 p90 0.7005 | time p50 67 p90 205
+  editor|claude-sonnet-5-5: n 19 | cost p50 0.0779 p90 0.3018 | time p50 59 p90 1373
+  verifier|claude-haiku-5-5: n 12 | cost p50 0.0034 p90 0.0139 | time p50 47 p90 211
+  verifier|claude-haiku-4-5-20251001: n 11 | cost p50 0.0256 p90 0.0530 | time p50 55 p90 63
+  investigator|claude-haiku-5-5: n 9 | cost p50 0.0023 p90 0.0065 | time p50 49 p90 135
+  visual-reviewer|claude-sonnet-5-5: n 8 | cost p50 0.0609 p90 0.0830 | time p50 27 p90 63
+  general-purpose|claude-haiku-4-5-20251001: n 7 | cost p50 0.0666 p90 0.1158 | time p50 89 p90 141
+  source-reader|claude-sonnet-5-5: n 7 | cost p50 0.0342 p90 0.1284 | time p50 35 p90 3389
+windows crossing 10000: 215; with work after crossing: 185
+  remainder chars p50 7779 p90 36791; calls p50 4 p90 20; carry p50 32; main ctx at crossing p50 121240
+  edit-heavy remainders (>=half calls are Edit/Write): 33
+
+remainder done directly in main: total 65.01 USD, per window p50 0.1067
+delegated to investigator haiku-5.5 (subagent cost at p50): total 24.48 USD (-62% vs direct)
+delegated to investigator haiku-5.5 (subagent cost at p90): total 26.41 USD (-59% vs direct)
+delegated to editor sonnet-5.5 (subagent cost at p50): total 58.57 USD (-10% vs direct)
+delegated to editor sonnet-5.5 (subagent cost at p90): total 159.54 USD (+145% vs direct)

@@ -1,0 +1,10 @@
+windows: 844; count>8: 130
+chars at the 8th call (windows reaching 8): p25 8444 p50 12770 p75 21544
+chars per window: p50 3345 p90 22208
+T | windows over T | over T but count<=8 | count>8 but under T
+5000 | 357 | 227 | 0
+8000 | 245 | 123 | 8
+10000 | 212 | 98 | 16
+15000 | 133 | 38 | 35
+20000 | 96 | 21 | 55
+30000 | 55 | 4 | 79

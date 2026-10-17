@@ -1,0 +1,22 @@
+sessions 96; actual total (main + subagents) $752.86
+A  X=1: $661.69 (-12%), delegations 239
+B  X=1 review $0.06: $502.72 (-33%), delegations 344
+B  X=1 review $0.24: $564.64 (-25%), delegations 344
+A  X=1.5: $662.20 (-12%), delegations 239
+B  X=1.5 review $0.06: $540.45 (-28%), delegations 344
+B  X=1.5 review $0.24: $602.37 (-20%), delegations 344
+A  X=2: $662.93 (-12%), delegations 239
+B  X=2 review $0.06: $588.34 (-22%), delegations 344
+B  X=2 review $0.24: $650.26 (-14%), delegations 344
+
+actual: main $574.43, subagents $178.43 {"architect":32.61,"investigator":3.07,"editor":10.41,"verifier":0.45,"general-purpose":129.29,"Explore":0.51,"claude-code-guide":0.31,"source-reader":0.33,"claude":0.18,"grader":0.15,"visual-reviewer":0.89,"worker":0.01,"prober":0.22}
+brief 2000 tok, executor rerun 0%: A -10%  B -26%
+brief 600 tok, executor rerun 30%: A -12%  B -22%
+brief 2000 tok, executor rerun 30%: A -10%  B -20%
+
+B with only a fraction of non-trivial windows delegable (rest stay in main as today), X=1.5, review $0.06, brief 2000, rerun 30%:
+  30%: B -7%
+  40%: B -7%
+  50%: B -10%
+  60%: B -15%
+  80%: B -17%

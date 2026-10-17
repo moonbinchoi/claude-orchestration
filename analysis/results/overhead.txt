@@ -1,0 +1,23 @@
+subagent runs: 277
+type | model | n | firstCtx med (p10) | promptChars med | turns med | totIn med | totFresh med | totOut med | mainPromptChars med | mainResultChars med
+architect | claude-opus-5-5 | 60 | 10406 (9916) | 987 | 9 | 277402 | 37131 | 309 | 1108 | 1064
+investigator | claude-haiku-4-5-20251001 | 39 | 6342 (5654) | 696 | 11 | 380966 | 52416 | 52 | 824 | 1064
+editor | claude-sonnet-5 | 37 | 17706 (15816) | 1724 | 23 | 733652 | 35266 | 1844 | 1893 | 351
+general-purpose | claude-sonnet-5 | 30 | 39651 (37923) | 5819 | 25 | 1666224 | 79015 | 1247 | 6067 | 1064
+architect | claude-opus-5 | 29 | 12438 (10880) | 1904 | 5 | 111536 | 28037 | 86 | 2089 | 349
+editor | claude-sonnet-5-5 | 17 | 11484 (11327) | 1019 | 8 | 264468 | 22899 | 203 | 1132 | 350
+verifier | claude-haiku-5-5 | 12 | 8267 (8165) | 624 | 5 | 78376 | 20999 | 42 | 767 | 1067
+verifier | claude-haiku-4-5-20251001 | 11 | 9093 (9044) | 584 | 7 | 94689 | 14623 | 22 | 702 | 1064
+general-purpose | claude-haiku-4-5-20251001 | 7 | 27276 (26858) | 4673 | 3 | 123482 | 40473 | 6 | 4874 | 3173
+source-reader | claude-sonnet-5-5 | 7 | 7957 (7485) | 873 | 2 | 21106 | 13151 | 48 | 1013 | 1067
+investigator | claude-haiku-5-5 | 6 | 7830 (6620) | 1130 | 6 | 87114 | 24023 | 39 | 1236 | 1067
+general-purpose | <synthetic> | 4 | 41065 (38841) | 7615 | 100 | 20307440 | 1182729 | 32107 | 7853 | 1058
+grader | claude-sonnet-5-5 | 4 | 11385 (10914) | 908 | 2 | 24719 | 13336 | 45 | 1057 | 348
+general-purpose | claude-opus-5 | 3 | 40745 (40617) | 3799 | 38 | 4339328 | 114045 | 3847 | 3965 | 1058
+worker | claude-haiku-5-5 | 3 | 8223 (8210) | 328 | 5 | 72282 | 18184 | 126 | 442 | 349
+Explore | claude-sonnet-5 | 2 | 27248 (27219) | 1606 | 20 | 977741 | 72295 | 90 | 1750 | 152
+claude-code-guide | claude-haiku-4-5-20251001 | 2 | 21183 (18557) | 2510 | 9 | 273987 | 37534 | 66 | 2659 | 2124
+architect | <synthetic> | 1 | 12406 (12406) | 2175 | 4 | 55168 | 18815 | 13 | 2363 | 781
+claude-code-guide | claude-sonnet-5 | 1 | 29167 (29167) | 2708 | 8 | 418249 | 72204 | 30 | 2876 | 351
+claude | claude-sonnet-5-5 | 1 | 42353 (42353) | 311 | 4 | 220254 | 66935 | 149 | 470 | 349
+prober | claude-sonnet-5 | 1 | 12353 (12353) | 1161 | 24 | 816104 | 55292 | 225 | 1292 | 351

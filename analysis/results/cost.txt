@@ -1,0 +1,16 @@
+main-context cost by tool (USD, share):
+  Bash: 37.33 (71%)
+  Read: 10.42 (20%)
+  WebFetch: 1.29 (2%)
+  Grep: 1.18 (2%)
+  Edit: 1.17 (2%)
+  WebSearch: 0.58 (1%)
+  Write: 0.51 (1%)
+  PowerShell: 0.26 (0%)
+  Glob: 0.21 (0%)
+  total: 52.95
+Grep/Glob clusters: 87
+  direct total 1.491  (per cluster 0.0171)
+  delegate, raw output returned: 1.976  (diff 0.484)
+  delegate, result cut to <=300 tok: 0.912  (diff -0.579; cheaper in 29/87 clusters)
+  haiku cost per delegation (R=500): 0.0020
