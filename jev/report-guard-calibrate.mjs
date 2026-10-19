@@ -10,14 +10,14 @@ import { checkReport } from './report-check.mjs';
 import { loadConfig } from './guard-common.mjs';
 
 export async function calibrate(items, { out, noJev = false, fetchImpl = fetch, random = Math.random, dir = join(homedir(), '.claude', 'jev') } = {}) {
-  const { alias } = loadConfig(dir, 'reportGuard', ['log', 'enforce', 'off']);
+  const { alias, jevShadow } = loadConfig(dir, 'reportGuard', ['log', 'enforce', 'off']);
   const recs = [];
   for (const it of items) {
     const input = { session_id: null, agent_id: null, agent_type: it.agent_type ?? null, agent_transcript_path: it.transcript_path, last_assistant_message: '' };
     let transcript = null;
     try { transcript = readTail(it.transcript_path); } catch { /* unreadable: logged as no_transcript */ }
     const { text, status } = readReport(input, () => transcript?.text ?? '');
-    const rec = { ...(await checkReport(input, { text, status, transcript, alias, fetchImpl, random, noJev })), transcript_path: it.transcript_path };
+    const rec = { ...(await checkReport(input, { text, status, transcript, alias, jevShadow, fetchImpl, random, noJev })), transcript_path: it.transcript_path };
     recs.push(rec);
     if (out) appendFileSync(out, JSON.stringify(rec) + '\n');
   }

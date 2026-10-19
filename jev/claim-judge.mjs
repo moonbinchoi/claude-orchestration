@@ -1,13 +1,8 @@
 // claim-judge: ask Jev whether one report claim states more than one line of transcript evidence supports.
 // Each part is redacted, capped and guarded before sending; a rejected pair is not sent. Never throws.
 import { JevError, systemOne } from './jev-client.mjs';
-import { guard } from './jev-tier.mjs';
-import { redact } from './failure-cause.mjs';
-import { PATH_URL_EMAIL } from './guard-common.mjs';
+import { outbound } from './outbound.mjs';
 
-// guard() tolerates a few non-ASCII letters; a claim sent to Jev must have no CJK text at all
-const CJK = /[\p{Script=Hangul}\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u;
-const CAP = 200;
 const CONFIDENCE_MIN = 0.6;
 export const DEADLINE_MS = 1500;
 const Q = {
@@ -25,10 +20,10 @@ const Q = {
 export async function judgePairs(pairs, { fetchImpl = fetch, alias = 'jev-latest', now = Date.now, deadlineMs = DEADLINE_MS } = {}) {
   const signal = AbortSignal.timeout(deadlineMs);
   return Promise.all(pairs.map(async (pair) => {
-    const claim = redact(pair.claim).slice(0, CAP);
-    const evidence = redact(pair.evidence).slice(0, CAP);
+    const { text: claim, bad: badClaim } = outbound(pair.claim);
+    const { text: evidence, bad: badEvidence } = outbound(pair.evidence);
     const rec = { claim_sent: claim, evidence_sent: evidence, p: null, confidence: null, verdict: 'cannot_tell', latency_ms: null, jev_error: null, reason: null };
-    const bad = (CJK.test(claim) || CJK.test(evidence) ? 'cjk' : null) ?? guard(claim) ?? guard(evidence) ?? (PATH_URL_EMAIL.test(claim) || PATH_URL_EMAIL.test(evidence) ? 'path_url_email' : null);
+    const bad = badClaim ?? badEvidence;
     if (bad) { rec.reason = `rejected: ${bad}`; return rec; }
     const start = now();
     try {

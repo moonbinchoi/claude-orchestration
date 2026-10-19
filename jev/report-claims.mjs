@@ -20,9 +20,9 @@ const ANY_COUNT = /\b(\d+)\s+(?:[\w-]+\s+)?(?:tests?|specs?|cases?)\b/gi;
 // quoted text, and backtick spans holding more than one word, are not the agent's own claim; single-token backticks stay (file names)
 // spans are matched pair by pair first, so text between two single-token spans is never taken as a span
 const QUOTED = /"[^"\n]*"|\u201c[^\u201d\n]*\u201d|`[^`\n]*`/g;
-const unquote = (s) => s.replace(QUOTED, (m) => (m[0] === '`' && !/\s/.test(m) ? m : ' '));
+export const unquote = (s) => s.replace(QUOTED, (m) => (m[0] === '`' && !/\s/.test(m) ? m : ' '));
 // code citations and review findings quote or discuss someone else's text
-const CITE = /\b\w+\.\w+:\d+|^Line \d+:|^Claim:/;
+export const CITE = /\b\w+\.\w+:\d+|^Line \d+:|^Claim:/;
 const FINDING = /^(?:Issues?|Findings?|Scenario|Fix)\b/;
 const BULLET = /^([-*]|\d+[.)]|#+)\s+/;
 export const isCitedLine = (l) => { const t = String(l).replace(/`|\*\*/g, '').trim().replace(BULLET, ''); return CITE.test(t) || FINDING.test(t); };
