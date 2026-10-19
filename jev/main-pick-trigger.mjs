@@ -1,10 +1,9 @@
 // main-pick-trigger: UserPromptSubmit handler. On the first prompt of an interactive session it returns additionalContext
 // that makes the main session summarise, run main-pick.mjs, show the line and stop. Always on. Fail-open: any problem returns null.
-import { appendFileSync, closeSync, mkdirSync, openSync, readSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ENTRYPOINTS = ['cli', 'claude-vscode'];
-const HEAD_BYTES = 256 * 1024;
 
 export const TEXT = [
   'First prompt of this session: judge only, do not start the work.',
@@ -15,15 +14,10 @@ export const TEXT = [
   '4) End the turn. In this turn do not do any of the requested work, do not call other tools, and do not dispatch subagents.',
 ].join('\n');
 
-// true when the first 256 KB of the transcript holds an assistant entry; missing or unreadable = false
+// true when the transcript holds an assistant entry; missing or unreadable = false. Whole file: a session's first
+// assistant entry can sit past 320 KB (seen live), and a fresh session's transcript is tiny.
 function hasAssistant(path) {
-  let fd;
-  try {
-    fd = openSync(path, 'r');
-    const buf = Buffer.alloc(HEAD_BYTES);
-    const n = readSync(fd, buf, 0, HEAD_BYTES, 0);
-    return /"type"\s*:\s*"assistant"/.test(buf.toString('utf8', 0, n));
-  } catch { return false; } finally { if (fd !== undefined) try { closeSync(fd); } catch { /* ignore */ } }
+  try { return /"type"\s*:\s*"assistant"/.test(readFileSync(path, 'utf8')); } catch { return false; }
 }
 
 export function onPrompt(input, { dir, env = process.env, now = Date.now } = {}) {

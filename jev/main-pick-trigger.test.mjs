@@ -64,10 +64,11 @@ test('transcript with only user lines, or missing -> fires', () => {
   assert.ok(onPrompt({ session_id: 's1', transcript_path: t }, { dir: d, env: CLI }));
   assert.ok(onPrompt({ session_id: 's2', transcript_path: join(d, 'none.jsonl') }, { dir: d, env: CLI }));
 });
-test('assistant entry beyond the first 256 KB is not seen', () => {
+test('assistant entry far into the transcript is seen (live case: 320 KB)', () => {
   const d = tmp(); const t = join(d, 't.jsonl');
-  writeFileSync(t, ' '.repeat(300 * 1024) + '{"type":"assistant"}\n');
-  assert.ok(onPrompt({ session_id: 's1', transcript_path: t }, { dir: d, env: CLI }));
+  writeFileSync(t, ' '.repeat(400 * 1024) + '{"type":"assistant"}\n');
+  assert.equal(onPrompt({ session_id: 's1', transcript_path: t }, { dir: d, env: CLI }), null);
+  assert.equal(logs(d)[0].skip_reason, 'resumed_session');
 });
 test('marker write failure -> null, never fires', () => {
   const d = tmp();
