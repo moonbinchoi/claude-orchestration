@@ -47,11 +47,25 @@
       "effortLevel": "high"
     },
     "claude-sonnet-5-5": {
-      "effortLevel": "high"
+      "effortLevel": "medium"
     }
   },
   "autoUpdatesChannel": "latest",
   "theme": "auto",
   "inputNeededNotifEnabled": true,
-  "agentPushNotifEnabled": true
+  "agentPushNotifEnabled": true,
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["C:/Users/skyra/.claude/jev/stop-guard.mjs"],
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
 }

@@ -67,7 +67,7 @@ function buildBody(summary, alias, random) {
 }
 
 // Input guard: returns a rule name on rejection, null when acceptable. Never echoes the text.
-function guard(summary) {
+export function guard(summary) {
   if (typeof summary !== 'string') return 'summary_not_string';
   if (summary.length > 400) return 'too_long';
   try {
