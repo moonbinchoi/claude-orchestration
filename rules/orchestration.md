@@ -16,16 +16,22 @@ Keep the work in the main conversation when it is a small task or a single looku
 ## Routing
 
 - Make the judgment before dispatching `worker`, in the main conversation or through `analyst`.
+- Split bulk input that needs judgment (log scans, 10 or more files) in two: `explorer` extracts candidates to a short file; `analyst` or the main conversation judges only that file.
 - Chain agents through the main conversation, for example `explorer` → `analyst` → `worker` → `reviewer`.
 - Send every review to `reviewer`, including reviews a skill dispatches as `general-purpose`, and keep the skill's prompt and model.
 - Use a fork when the task needs this conversation's context: it shares the cache but runs on the main model. Use a fresh agent otherwise.
 
 ## Model
 
+Before dispatching bulk work, decide each agent's model and expected input size.
+
 Pass `model` only in these cases:
 - `worker`, on every dispatch: `sonnet` when judgment remains inside the task (a prose-only brief, coordinated edits across files, writing for a reader, a transformation with ambiguous rules); `haiku` otherwise (command runs, exact edits, single-file mechanical changes, explicit-rule transformations, file operations).
+- `analyst`: `sonnet` when the input is bulk.
 - `reviewer`: `sonnet` for a small mechanical diff.
 - `fable`: only when the user asks for it.
+
+Run at most 2 Opus agents at once: `analyst` and `reviewer` without a `model` override, and forks of an Opus main. Several at once exhaust the usage limit.
 
 On BLOCKED:
 - `worker`: settle the judgment, in the main conversation or through `analyst`, and re-dispatch with a sharper brief. Pass a higher model only when the brief was already exact.
@@ -38,8 +44,21 @@ On BLOCKED:
 Write every brief with these parts:
 - **Goal**: the outcome and how to tell it is done.
 - **Context**: the paths, facts, and decisions the agent needs. Pass large inputs as file paths; leave out conversation history.
-- **Scope**: what to touch and what to leave.
+- **Scope**: what to touch and what to leave. When sources are split across agents, name the sources the others cover.
 - **Skills**: the skills to invoke when the work follows a method, such as TDD. Choose them here; skills that question the user or dispatch subagents stay in the main conversation.
 - **Return**: the report shape, a length cap if it differs from the default, and an output path when the full result is long.
 
+For bulk input, tell the agent to read only grep hits, write interim results to the output path as it goes, and keep its context under ~150K tokens.
+
 Before acting on a claim a decision depends on, read the lines it cites yourself.
+
+## Interruptions
+
+- Resume a stopped agent within an hour; after that, start a fresh one from its interim file. The cache expires after an hour, and resuming rewrites the whole context.
+- To stay under a concurrency cap, hold new dispatches until a running agent finishes. Do not stop running agents.
+
+## Long work
+
+- Before exploring to interpret an ambiguous instruction, ask the user once.
+- Update status files at phase ends, not after every report.
+- At a phase end, write a status file and suggest continuing in a new session.
