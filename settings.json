@@ -70,13 +70,48 @@
       }
     ],
     "PreToolUse": [
-      { "matcher": "Agent", "hooks": [ { "type": "command", "command": "node", "args": ["C:/Users/skyra/.claude/jev/dispatch-guard.mjs"], "timeout": 5 } ] }
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "C:/Users/skyra/.claude/jev/agent-hooks.mjs"
+            ],
+            "timeout": 5
+          }
+        ]
+      }
     ],
     "PostToolUse": [
-      { "matcher": "Agent", "hooks": [ { "type": "command", "command": "node", "args": ["C:/Users/skyra/.claude/jev/dispatch-guard.mjs"], "timeout": 5 } ] }
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "C:/Users/skyra/.claude/jev/agent-hooks.mjs"
+            ],
+            "timeout": 5
+          }
+        ]
+      }
     ],
     "SubagentStop": [
-      { "hooks": [ { "type": "command", "command": "node", "args": ["C:/Users/skyra/.claude/jev/dispatch-guard.mjs"], "timeout": 5 } ] }
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "C:/Users/skyra/.claude/jev/agent-hooks.mjs"
+            ],
+            "timeout": 5
+          }
+        ]
+      }
     ]
   }
 }
