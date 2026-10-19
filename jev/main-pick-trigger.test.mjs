@@ -18,9 +18,16 @@ test('fires on cli and claude-vscode; output shape and log', () => {
     assert.deepEqual(o, { hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: TEXT } });
     assert.ok(existsSync(join(d, 'main-pick-seen', 's1')));
     const l = logs(d)[0];
-    assert.deepEqual(l, { ts: l.ts, kind: 'trigger', fired: true, skip_reason: null, entrypoint: ep, session_id: 's1' });
+    assert.deepEqual(l, { ts: l.ts, kind: 'trigger', fired: true, skip_reason: null, entrypoint: ep, attended: null, session_id: 's1' });
   }
-  assert.ok(TEXT.includes("<<'JEV_EOF'") && TEXT.includes('main-pick.mjs'));
+  assert.ok(TEXT.includes('main-pick.mjs "<summary>"') && !TEXT.includes('{'));
+});
+test('skip: unattended (nested claude -p inherits ENTRYPOINT); attended 1 fires', () => {
+  const d = tmp();
+  assert.equal(onPrompt({ session_id: 's1' }, { dir: d, env: { CLAUDE_CODE_ENTRYPOINT: 'claude-vscode', CLAUDE_CODE_SESSION_ATTENDED: '0' } }), null);
+  assert.equal(logs(d)[0].skip_reason, 'unattended');
+  assert.equal(existsSync(join(d, 'main-pick-seen', 's1')), false);
+  assert.ok(onPrompt({ session_id: 's1' }, { dir: d, env: { CLAUDE_CODE_ENTRYPOINT: 'claude-vscode', CLAUDE_CODE_SESSION_ATTENDED: '1' } }));
 });
 test('skip: other entrypoint or none', () => {
   for (const env of [{ CLAUDE_CODE_ENTRYPOINT: 'sdk-cli' }, {}]) {

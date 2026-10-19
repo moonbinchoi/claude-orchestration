@@ -1,4 +1,4 @@
-// main-pick: CLI for the first prompt of a session. stdin {"summary": "<1-2 English sentences>"}; prints ONE line:
+// main-pick: CLI for the first prompt of a session. `node main-pick.mjs "<1-2 English sentences>"`; prints ONE line:
 // Jev's pick of model and effort for the MAIN session (raw argmax, runner-up shown when unsure). Fail-open, always exit 0.
 import { appendFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -92,11 +92,9 @@ export async function pick(input, { fetchImpl = fetch, now = Date.now, dir = def
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   let line = 'Jev failed: internal_error';
   try {
-    let raw = '';
-    for await (const chunk of process.stdin) raw += chunk;
-    let input = null;
-    try { input = JSON.parse(raw); } catch { /* bad_input below */ }
-    line = await pick(input, { dir: process.env.JEV_DIR || defaultDir() });
+    // summary as argv (no stdin JSON: the Bash sandbox blocks brace-and-quote heredocs)
+    const summary = process.argv.slice(2).join(' ').trim();
+    line = await pick(summary ? { summary } : null, { dir: process.env.JEV_DIR || defaultDir() });
   } catch { /* fail-open */ }
   console.log(line);
   process.exitCode = 0;
