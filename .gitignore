@@ -3,3 +3,8 @@
 !/rules/
 !/agents/
 !/settings.json
+!/jev/
+/jev/shadow.jsonl
+/jev/cache/
+/jev/breaker.json
+/jev/latest.json

@@ -21,6 +21,16 @@ Keep the work in the main conversation when it is a small task or a single looku
 - Send every review to `reviewer`, including reviews a skill dispatches as `general-purpose`, and keep the skill's prompt and model.
 - Use a fork when the task needs this conversation's context: it shares the cache but runs on the main model. Use a fresh agent otherwise.
 
+## Jev shadow log
+
+Shadow phase: Jev's result is logged only; the model still comes from the rules above.
+
+For every subagent dispatch:
+- Write a 1-2 sentence English summary of the task. No secrets, paths, code, or raw user prompt. Non-English text is rejected.
+- Run `node ~/.claude/jev/jev-tier.mjs` with `{"tasks":[{"id","summary","agent_type","rule_model","rule_effort"}]}` on stdin. Set `rule_model` to the model the rules above choose; batch tasks dispatched together.
+- Dispatch with the model the rules above choose. Ignore the output and record nothing else; the tool logs itself.
+- If the call fails or the summary is rejected, dispatch anyway. Rewrite in English at most once.
+
 ## Model
 
 Before dispatching bulk work, decide each agent's model and expected input size.
