@@ -3,3 +3,5 @@ registry.jsonl
 dispatch-guard.jsonl
 retry-guard.jsonl
 report-guard.jsonl
+main-pick.jsonl
+main-pick-seen/

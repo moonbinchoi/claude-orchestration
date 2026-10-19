@@ -383,6 +383,20 @@ test('agent-hooks: SubagentStop runs retry-guard and report-guard in parallel, r
   assert.deepEqual([a.reads, a.got.transcript.text, a.got.deadlineAt], [1, 'T', 6700]);
   assert.equal((await run(3300, 0)).got.deadlineAt, 3800);
 });
+test('UserPromptSubmit: first prompt fires through the loader, second does not; other entrypoint skips', async () => {
+  const dir = tmp();
+  const input = { session_id: 'up1', hook_event_name: 'UserPromptSubmit', prompt: 'hello' };
+  const cliEnv = { CLAUDE_CODE_ENTRYPOINT: 'cli' };
+  const h = JSON.parse((await evaluate(input, { dir, env: cliEnv })).output).hookSpecificOutput;
+  assert.equal(h.hookEventName, 'UserPromptSubmit');
+  assert.ok(h.additionalContext.includes('main-pick.mjs'));
+  assert.equal((await evaluate(input, { dir, env: cliEnv })).output, null);
+  assert.equal((await evaluate({ ...input, session_id: 'up2' }, { dir, env: { CLAUDE_CODE_ENTRYPOINT: 'sdk-cli' } })).output, null);
+});
+test('UserPromptSubmit: broken trigger module -> null (fail-open)', async () => {
+  const r = await evaluate({ session_id: 'up3', hook_event_name: 'UserPromptSubmit' }, { dir: tmp(), loader: () => { throw new Error('x'); } });
+  assert.equal(r.output, null);
+});
 
 for (const [name, fn] of cases) {
   try { await fn(); console.log(`ok   ${name}`); } catch (e) { failed++; console.log(`FAIL ${name}\n     ${e.message.split('\n').join('\n     ')}`); }

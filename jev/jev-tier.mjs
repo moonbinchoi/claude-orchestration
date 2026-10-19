@@ -5,6 +5,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { JevError, assertEnglish, systemOne } from './jev-client.mjs';
+import { createBreaker } from './breaker.mjs';
 
 const DEFAULTS = {
   marginThreshold: 0.1,
@@ -123,13 +124,8 @@ export async function run(input, { fetchImpl = fetch, now = Date.now, random = M
   const cfg = loadConfig(dir);
   // ponytail: cache dir grows unbounded; prune expired files on read if it matters
   try { mkdirSync(join(dir, 'cache'), { recursive: true }); } catch { /* ignore */ }
-  const br = readJson(join(dir, 'breaker.json')) ?? {};
-  br.failures = Number.isFinite(br.failures) ? br.failures : 0;
-  br.open_until = Number.isFinite(br.open_until) ? br.open_until : 0;
-  const openAtStart = br.open_until > now();
-  let brDirty = false;
+  const br = createBreaker({ dir, now, failures: cfg.breakerFailures, openMs: cfg.breakerOpenMs });
   const signal = AbortSignal.timeout(cfg.deadlineMs);
-  const breakerFile = join(dir, 'breaker.json');
   const logFile = join(dir, 'shadow.jsonl');
   const log = (rec) => { try { appendFileSync(logFile, JSON.stringify(rec) + '\n'); } catch { /* ignore */ } };
   const tasks = Array.isArray(input?.tasks) ? input.tasks : [];
@@ -176,18 +172,15 @@ export async function run(input, { fetchImpl = fetch, now = Date.now, random = M
 
     let shuffleInfo = {};
     if (!res) {
-      if (openAtStart) return fail('circuit_open');
+      if (br.open) return fail('circuit_open');
       const doShuffle = random() < cfg.biasSampleRate;
       const call = (b) => systemOne({ body: b, fetchImpl, signal, timeoutMs: cfg.attemptTimeoutMs });
       const [main, side] = await Promise.allSettled([call(body), doShuffle ? call(buildBody(t.summary, cfg.modelAlias, random)) : null]);
-      brDirty = true;
       if (main.status === 'rejected') {
-        br.failures++;
-        if (br.failures >= cfg.breakerFailures) br.open_until = now() + cfg.breakerOpenMs;
+        br.fail();
         return fail(main.reason instanceof JevError ? main.reason.reason : 'network');
       }
-      br.failures = 0;
-      br.open_until = 0;
+      br.ok();
       res = main.value;
       derived = derive(res);
       writeJson(cacheFile, { ts: now(), response: res });
@@ -212,7 +205,7 @@ export async function run(input, { fetchImpl = fetch, now = Date.now, random = M
   };
 
   const results = await Promise.all(tasks.map((t) => one(t).catch(() => ({ id: t?.id ?? null, model: null, effort: null, probs: null, margin: null, fallback_reason: 'internal_error', latency_ms: 0 }))));
-  if (brDirty) writeJson(breakerFile, br);
+  br.save();
   return results;
 }
 

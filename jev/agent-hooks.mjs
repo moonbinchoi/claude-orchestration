@@ -1,5 +1,5 @@
-// agent-hooks: hook entry for PreToolUse(Agent), PostToolUse(Agent) and SubagentStop. Records events in the registry and
-// runs dispatch-guard, retry-guard and report-guard. Each guard loads in its own try/catch so one broken module never stops the other
+// agent-hooks: hook entry for PreToolUse(Agent), PostToolUse(Agent), SubagentStop and UserPromptSubmit. Records events in the registry and
+// runs dispatch-guard, retry-guard and report-guard; UserPromptSubmit runs main-pick-trigger (first-prompt model hint). Each guard loads in its own try/catch so one broken module never stops the other
 // or the recording. Fail-open, always exit 0.
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -33,7 +33,7 @@ function merge(outs) {
   return ctx.length ? { hookSpecificOutput: { hookEventName: hs[0].hookEventName, additionalContext: ctx.join('\n') } } : null;
 }
 
-export async function evaluate(input, { fetchImpl = fetch, dir = defaultDir(), now = Date.now, startedAt = now(), transcriptReader = readTail, loader = (f) => import(`./${f}`) } = {}) {
+export async function evaluate(input, { fetchImpl = fetch, dir = defaultDir(), now = Date.now, startedAt = now(), transcriptReader = readTail, loader = (f) => import(`./${f}`), env = process.env } = {}) {
   if (!input || typeof input !== 'object') return { output: null };
   const ev = input.hook_event_name;
   const sid = input.session_id ?? null;
@@ -61,6 +61,10 @@ export async function evaluate(input, { fetchImpl = fetch, dir = defaultDir(), n
     }
     append(dir, 'registry.jsonl', event);
     return out(await attempt(async () => (await loader('retry-guard.mjs')).afterEvent(input, { dir, now, fetchImpl, via: 'link' })));
+  }
+
+  if (ev === 'UserPromptSubmit') {
+    return out(await attempt(async () => (await loader('main-pick-trigger.mjs')).onPrompt(input, { dir, env, now })));
   }
 
   if (ev === 'SubagentStop') {
