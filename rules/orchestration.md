@@ -19,6 +19,7 @@ Keep the work in the main conversation when it is a small task or a single looku
 - Split bulk input that needs judgment (log scans, 10 or more files) in two: `explorer` extracts candidates to a short file in a fixed format; `analyst` or the main conversation judges only that file, including dedupe and value.
 - Chain agents through the main conversation, for example `explorer` → `analyst` → `worker` → `reviewer`.
 - Send every review to `reviewer`, including reviews a skill dispatches as `general-purpose`, and keep the skill's prompt and model.
+- When `reviewer` checks a subagent's output, put `Verifies: <agent_id>` in its brief and require an `Exaggeration: none|minor|serious` line after its status line.
 - Use a fork when the task needs this conversation's context: it shares the cache but runs on the main model. Use a fresh agent otherwise.
 
 ## Jev shadow log
