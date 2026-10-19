@@ -248,6 +248,29 @@ test('bad config values fall back to defaults', async () => {
   assert.equal(r.model, 'sonnet');
 });
 
+test('floor: reviewer haiku pick -> sonnet, logged raw and floor_applied', async () => {
+  const o = opts(fixed(payload({ haiku: 0.9, sonnet: 0.05, opus: 0.05 })));
+  const r = await one(task('Fix a failing unit test in one module.', { agent_type: 'reviewer' }), o);
+  assert.equal(r.model, 'sonnet');
+  const l = lines(o.dir)[0];
+  assert.equal(l.jev_raw, 'haiku'); assert.equal(l.floor_applied, true); assert.equal(l.model, 'sonnet');
+});
+test('floor: analyst opus pick unchanged; worker haiku unchanged', async () => {
+  const o = opts(fixed(payload({ haiku: 0.05, sonnet: 0.05, opus: 0.9 })));
+  assert.equal((await one(task('Fix a failing unit test in one module.', { agent_type: 'analyst' }), o)).model, 'opus');
+  assert.equal(lines(o.dir)[0].floor_applied, false);
+  const o2 = opts(fixed(payload({ haiku: 0.9, sonnet: 0.05, opus: 0.05 })));
+  const r = await one(task('Fix a failing unit test in one module.', { agent_type: 'worker' }), o2);
+  assert.equal(r.model, 'haiku'); assert.equal(lines(o2.dir)[0].floor_applied, false);
+});
+test('floor applies on the cached path too', async () => {
+  const o = opts(fixed(payload({ haiku: 0.9, sonnet: 0.05, opus: 0.05 })));
+  const inp = task('Fix a failing unit test in one module.', { agent_type: 'reviewer' });
+  await one(inp, o);
+  const r = await one(inp, o);
+  assert.equal(r.model, 'sonnet'); assert.equal(lines(o.dir)[1].cached, true); assert.equal(lines(o.dir)[1].floor_applied, true);
+});
+
 for (const [name, fn] of cases) {
   try { await fn(); console.log(`PASS ${name}`); } catch (e) { failed++; console.log(`FAIL ${name}\n  ${e.message.split('\n')[0]}`); }
 }
