@@ -2,10 +2,17 @@
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
+import { assertEnglish } from './jev-client.mjs';
 
 export const RERUN = /^Rerun:\s*\S/im;
 // slash path, url, email or backslash path left in text that would go to Jev
 export const PATH_URL_EMAIL = /\w\/\w|:\/\/|@\w+\.|\w\\\w/;
+
+// first line of a report: DONE | PARTIAL | BLOCKED
+export const STATUS = /^[\s*#_>`-]*(DONE|PARTIAL|BLOCKED)\b/;
+export const isEnglish = (s) => { try { assertEnglish(s); return true; } catch { return false; } };
+// text of a message content: a string, or an array of strings / { text } blocks joined by `sep`
+export const textOf = (c, sep = '\n') => (typeof c === 'string' ? c : Array.isArray(c) ? c.map((b) => (typeof b === 'string' ? b : b?.text)).filter((t) => typeof t === 'string').join(sep) : '');
 
 export const readJson = (f) => { try { return JSON.parse(readFileSync(f, 'utf8')); } catch { return null; } };
 

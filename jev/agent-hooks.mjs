@@ -1,22 +1,24 @@
 // agent-hooks: hook entry for PreToolUse(Agent), PostToolUse(Agent) and SubagentStop. Records events in the registry and
-// runs dispatch-guard and retry-guard. Each guard loads in its own try/catch so one broken module never stops the other
+// runs dispatch-guard, retry-guard and report-guard. Each guard loads in its own try/catch so one broken module never stops the other
 // or the recording. Fail-open, always exit 0.
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { append, readRegistry } from './registry.mjs';
-import { readReport, readTail } from './subagent-report.mjs';
-import { dispatchEvent } from './guard-common.mjs';
+import { readReport } from './subagent-report.mjs';
+import { readTail } from './transcript-read.mjs';
+import { dispatchEvent, textOf } from './guard-common.mjs';
 
 const defaultDir = () => join(homedir(), '.claude', 'jev');
 const LAUNCH_FAILED = /error|fail/i;
 const CAUSE_MAX = 300;
+const HOOK_BUDGET_MS = 3800; // the entry self-exits at 4 s
 
 const attempt = async (fn) => { try { return await fn(); } catch { return null; } };
 
 // cause text of a failed launch: error/message/content text, else the response without prompt and id-like fields
 function launchText(r) {
-  const content = Array.isArray(r.content) ? r.content.map((b) => (typeof b === 'string' ? b : b?.text)).filter((t) => typeof t === 'string').join(' ') : r.content;
+  const content = Array.isArray(r.content) ? textOf(r.content, ' ') : r.content;
   const first = [r.error, r.message, content].find((v) => typeof v === 'string' && v.trim());
   if (first) return first;
   return JSON.stringify(Object.fromEntries(Object.entries(r).filter(([k]) => k !== 'prompt' && !/id$/i.test(k))));
@@ -31,7 +33,7 @@ function merge(outs) {
   return ctx.length ? { hookSpecificOutput: { hookEventName: hs[0].hookEventName, additionalContext: ctx.join('\n') } } : null;
 }
 
-export async function evaluate(input, { fetchImpl = fetch, dir = defaultDir(), now = Date.now, transcriptReader = readTail, loader = (f) => import(`./${f}`) } = {}) {
+export async function evaluate(input, { fetchImpl = fetch, dir = defaultDir(), now = Date.now, startedAt = now(), transcriptReader = readTail, loader = (f) => import(`./${f}`) } = {}) {
   if (!input || typeof input !== 'object') return { output: null };
   const ev = input.hook_event_name;
   const sid = input.session_id ?? null;
@@ -62,11 +64,18 @@ export async function evaluate(input, { fetchImpl = fetch, dir = defaultDir(), n
   }
 
   if (ev === 'SubagentStop') {
-    const { text, status } = readReport(input, transcriptReader);
+    const tr = await attempt(() => transcriptReader(input.agent_transcript_path)); // read once, shared by the report reader and report-guard
+    const { text, status } = readReport(input, () => tr?.text ?? '');
     const fc = await attempt(() => loader('failure-cause.mjs'));
     const failure = (await attempt(() => fc?.classifyFailure({ text, status, launchStatus: null }))) ?? null;
     append(dir, 'registry.jsonl', { ts: ts(), event: 'stop', session_id: sid, agent_id: input.agent_id ?? null, status, failure });
-    await attempt(async () => (await loader('retry-guard.mjs')).afterEvent(input, { dir, now, fetchImpl, via: 'stop' }));
+    await Promise.all([
+      attempt(async () => (await loader('retry-guard.mjs')).afterEvent(input, { dir, now, fetchImpl, via: 'stop' })),
+      attempt(async () => {
+        const guardModule = await loader('report-guard.mjs');
+        return guardModule.onStop(input, { text, status, transcript: tr, deadlineAt: startedAt + HOOK_BUDGET_MS, dir, now, fetchImpl });
+      }),
+    ]);
     return { output: null };
   }
   return { output: null };
@@ -80,7 +89,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     let input = null;
     try { input = JSON.parse(raw); } catch { /* garbage stdin: silent exit */ }
     if (input && typeof input === 'object') {
-      const { output } = await evaluate(input, { dir: process.env.JEV_DIR || defaultDir() });
+      const { output } = await evaluate(input, { dir: process.env.JEV_DIR || defaultDir(), startedAt: Date.now() - process.uptime() * 1000 });
       if (output) process.stdout.write(output);
     }
   } catch { /* fail-open */ }

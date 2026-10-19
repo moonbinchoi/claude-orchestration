@@ -1,8 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { readReport, readTail } from './subagent-report.mjs';
+import { readReport } from './subagent-report.mjs';
 
 let failed = 0;
 const cases = [];
@@ -29,12 +26,6 @@ test('falls back to the last SubagentHandback; reader error or no path -> unknow
   assert.deepEqual(readReport({}, () => t), { text: '', status: 'unknown' });
   assert.equal(readReport(null).status, 'unknown');
 });
-test('readTail reads only the last 200 KiB', () => {
-  const f = join(mkdtempSync(join(tmpdir(), 'sr-test-')), 't.jsonl');
-  writeFileSync(f, 'a'.repeat(300 * 1024) + 'END');
-  const t = readTail(f); assert.equal(t.length, 200 * 1024); assert.ok(t.endsWith('END'));
-});
-
 for (const [name, fn] of cases) {
   try { await fn(); console.log(`ok   ${name}`); } catch (e) { failed++; console.log(`FAIL ${name}\n     ${e.message.split('\n').join('\n     ')}`); }
 }

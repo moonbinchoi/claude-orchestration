@@ -206,7 +206,7 @@ test('stop status falls back to the last SubagentHandback in the transcript', as
     { type: 'assistant', message: { content: [{ type: 'thinking' }, { type: 'tool_use', name: 'SubagentHandback', input: { message: 'BLOCKED\nwhy' } }] } },
   ].map((e) => JSON.stringify(e)).join('\n');
   const dir = tmp();
-  await evaluate({ session_id: 's1', hook_event_name: 'SubagentStop', agent_id: 'h1', last_assistant_message: '', agent_transcript_path: 'x' }, { dir, transcriptReader: () => t });
+  await evaluate({ session_id: 's1', hook_event_name: 'SubagentStop', agent_id: 'h1', last_assistant_message: '', agent_transcript_path: 'x' }, { dir, transcriptReader: () => ({ text: t }) });
   await evaluate({ session_id: 's1', hook_event_name: 'SubagentStop', agent_id: 'h2', agent_transcript_path: 'x' }, { dir, transcriptReader: () => { throw new Error('gone'); } });
   assert.deepEqual(reg(dir).map((e) => e.status), ['BLOCKED', 'unknown']);
 });
@@ -334,7 +334,7 @@ test('M6: link cause text from error/message/content, else response without ids 
 test('H1: non-empty last_assistant_message without a status line falls back to the handback status', async () => {
   const t = JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'SubagentHandback', input: { message: 'BLOCKED\nwhy' } }] } });
   const dir = tmp();
-  await evaluate({ session_id: 's1', hook_event_name: 'SubagentStop', agent_id: 'h1', last_assistant_message: 'Final summary text', agent_transcript_path: 'x' }, { dir, transcriptReader: () => t });
+  await evaluate({ session_id: 's1', hook_event_name: 'SubagentStop', agent_id: 'h1', last_assistant_message: 'Final summary text', agent_transcript_path: 'x' }, { dir, transcriptReader: () => ({ text: t }) });
   assert.equal(reg(dir)[0].status, 'BLOCKED');
 });
 
@@ -349,6 +349,39 @@ test('CLI: garbage stdin exits 0 silently; deny prints JSON', () => {
   cli(JSON.stringify({ ...base, hook_event_name: 'PostToolUse', tool_name: 'Agent', tool_use_id: 'toolu_cli1', tool_response: { agentId: 'acli1' } }), dir);
   const r = cli(ev.replace('toolu_cli1', 'toolu_cli2'), dir);
   assert.equal(r.status, 0); assert.equal(JSON.parse(r.stdout).hookSpecificOutput.permissionDecision, 'deny');
+});
+
+test('agent-hooks: SubagentStop runs report-guard with the report; a broken report-guard changes nothing else', async () => {
+  const dir = tmp();
+  const calls = [];
+  const stub = (f) => (f === 'report-guard.mjs' ? Promise.resolve({ onStop: async (i, o) => { calls.push([i.agent_id, o.text, o.status]); } }) : import(`./${f}`));
+  const input = { session_id: 's1', hook_event_name: 'SubagentStop', agent_id: 'r1', last_assistant_message: 'DONE\nAll 3 tests pass.' };
+  const a = await evaluate(input, { dir, loader: stub });
+  assert.equal(a.output, null); assert.deepEqual(calls, [['r1', 'DONE\nAll 3 tests pass.', 'DONE']]);
+  const b = await evaluate({ ...input, agent_id: 'r2' }, { dir, loader: mk('report-guard.mjs') });
+  assert.equal(b.output, null); assert.equal(reg(dir).at(-1).agent_id, 'r2');
+});
+test('agent-hooks: real report-guard logs a skipped record when the transcript is missing', async () => {
+  const dir = tmp();
+  await evaluate({ session_id: 's1', hook_event_name: 'SubagentStop', agent_id: 'r3', last_assistant_message: 'DONE\nAll 3 tests pass.', agent_transcript_path: join(dir, 'none.jsonl') }, { dir });
+  assert.equal(lines(dir, 'report-guard.jsonl')[0].skipped, 'no_transcript');
+});
+test('agent-hooks: SubagentStop runs retry-guard and report-guard in parallel, reads the transcript once, caps the report-guard deadline', async () => {
+  const dir = tmp();
+  const input = { session_id: 's1', hook_event_name: 'SubagentStop', agent_id: 'p1', last_assistant_message: 'DONE\nAll 3 tests pass.', agent_transcript_path: 'x' };
+  const run = async (now, startedAt) => {
+    const order = [];
+    let reads = 0;
+    let got;
+    const stub = (f) => (f === 'retry-guard.mjs' ? Promise.resolve({ afterEvent: async () => { order.push('retry-start'); await new Promise((r) => setTimeout(r, 100)); order.push('retry-end'); } })
+      : f === 'report-guard.mjs' ? Promise.resolve({ onStop: async (i, o) => { order.push('report-start'); got = o; } }) : import(`./${f}`));
+    await evaluate(input, { dir, loader: stub, now: () => now, startedAt, transcriptReader: () => { reads++; return { text: 'T', bytes: 1, truncated: false }; } });
+    return { order, reads, got };
+  };
+  const a = await run(3000, 2900);
+  assert.deepEqual(a.order, ['retry-start', 'report-start', 'retry-end']);
+  assert.deepEqual([a.reads, a.got.transcript.text, a.got.deadlineAt], [1, 'T', 6700]);
+  assert.equal((await run(3300, 0)).got.deadlineAt, 3800);
 });
 
 for (const [name, fn] of cases) {

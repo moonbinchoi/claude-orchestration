@@ -1,8 +1,7 @@
 // failure-cause: classify why one subagent task failed. Pure: no IO, no Jev.
 import { createHash } from 'node:crypto';
-import { assertEnglish } from './jev-client.mjs';
 import { guard } from './jev-tier.mjs';
-import { PATH_URL_EMAIL, jaccard, tokens } from './guard-common.mjs';
+import { PATH_URL_EMAIL, isEnglish, jaccard, tokens } from './guard-common.mjs';
 
 const CAUSE_MAX = 300;
 const EN_MAX = 200;
@@ -22,7 +21,6 @@ const SUBKINDS = [
 ];
 const subkindOf = (s) => SUBKINDS.find(([, re]) => re.test(s))?.[0] ?? null;
 const isKeyword = (l) => !NEGATED.test(l) && (KEYWORD.test(l) || SUBKINDS.some(([, re]) => re.test(l)));
-const isEnglish = (s) => { try { assertEnglish(s); return true; } catch { return false; } };
 const pick = (list) => list.find(isEnglish) ?? list[0];
 
 export function redact(s) {

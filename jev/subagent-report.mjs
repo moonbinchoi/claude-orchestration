@@ -1,20 +1,8 @@
 // subagent-report: the final report of a subagent and its status line (DONE/PARTIAL/BLOCKED).
-import { closeSync, fstatSync, openSync, readSync } from 'node:fs';
+import { STATUS } from './guard-common.mjs';
+import { readTail } from './transcript-read.mjs';
 
-const TRANSCRIPT_TAIL = 200 * 1024;
-
-const statusOf = (msg) => (String(msg ?? '').split('\n').find((l) => l.trim()) ?? '').match(/^[\s*#_>`-]*(DONE|PARTIAL|BLOCKED)\b/)?.[1] ?? null;
-
-export function readTail(path) {
-  const fd = openSync(path, 'r');
-  try {
-    const size = fstatSync(fd).size;
-    const len = Math.min(size, TRANSCRIPT_TAIL);
-    const buf = Buffer.alloc(len);
-    readSync(fd, buf, 0, len, size - len);
-    return buf.toString('utf8');
-  } finally { closeSync(fd); }
-}
+const statusOf = (msg) => (String(msg ?? '').split('\n').find((l) => l.trim()) ?? '').match(STATUS)?.[1] ?? null;
 
 // message of the last SubagentHandback tool call in the subagent transcript, or null.
 function handback(path, reader) {
@@ -33,7 +21,7 @@ function handback(path, reader) {
 }
 
 // Some hosts (VS Code extension) deliver the report as a SubagentHandback tool call, leaving last_assistant_message empty.
-export function readReport(input, reader = readTail) {
+export function readReport(input, reader = (path) => readTail(path).text) {
   const lam = input?.last_assistant_message;
   const own = typeof lam === 'string' && lam.trim() ? lam : null;
   const text = own && statusOf(own) ? own : handback(input?.agent_transcript_path, reader) ?? own ?? '';
