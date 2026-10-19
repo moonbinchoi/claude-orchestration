@@ -61,11 +61,22 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["C:/Users/skyra/.claude/jev/stop-guard.mjs"],
+            "args": [
+              "C:/Users/skyra/.claude/jev/stop-guard.mjs"
+            ],
             "timeout": 5
           }
         ]
       }
+    ],
+    "PreToolUse": [
+      { "matcher": "Agent", "hooks": [ { "type": "command", "command": "node", "args": ["C:/Users/skyra/.claude/jev/dispatch-guard.mjs"], "timeout": 5 } ] }
+    ],
+    "PostToolUse": [
+      { "matcher": "Agent", "hooks": [ { "type": "command", "command": "node", "args": ["C:/Users/skyra/.claude/jev/dispatch-guard.mjs"], "timeout": 5 } ] }
+    ],
+    "SubagentStop": [
+      { "hooks": [ { "type": "command", "command": "node", "args": ["C:/Users/skyra/.claude/jev/dispatch-guard.mjs"], "timeout": 5 } ] }
     ]
   }
 }

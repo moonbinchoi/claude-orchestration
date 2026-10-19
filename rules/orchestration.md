@@ -52,6 +52,7 @@ On BLOCKED:
 ## Brief
 
 Write every brief with these parts:
+- **Summary**: the first line, `Summary: <the English summary sent to jev-tier>`. When a task is split, name each piece's scope in it.
 - **Goal**: the outcome and how to tell it is done.
 - **Context**: the paths, facts, and decisions the agent needs. Pass large inputs as file paths; leave out conversation history.
 - **Scope**: what to touch and what to leave. When sources are split across agents, name the sources the others cover.
