@@ -16,7 +16,7 @@ Keep the work in the main conversation when it is a small task or a single looku
 ## Routing
 
 - Make the judgment before dispatching `worker`, in the main conversation or through `analyst`.
-- Split bulk input that needs judgment (log scans, 10 or more files) in two: `explorer` extracts candidates to a short file; `analyst` or the main conversation judges only that file.
+- Split bulk input that needs judgment (log scans, 10 or more files) in two: `explorer` extracts candidates to a short file in a fixed format; `analyst` or the main conversation judges only that file, including dedupe and value.
 - Chain agents through the main conversation, for example `explorer` → `analyst` → `worker` → `reviewer`.
 - Send every review to `reviewer`, including reviews a skill dispatches as `general-purpose`, and keep the skill's prompt and model.
 - Use a fork when the task needs this conversation's context: it shares the cache but runs on the main model. Use a fresh agent otherwise.
@@ -48,7 +48,7 @@ Write every brief with these parts:
 - **Skills**: the skills to invoke when the work follows a method, such as TDD. Choose them here; skills that question the user or dispatch subagents stay in the main conversation.
 - **Return**: the report shape, a length cap if it differs from the default, and an output path when the full result is long.
 
-For bulk input, tell the agent to read only grep hits, write interim results to the output path as it goes, and keep its context under ~150K tokens.
+For bulk input, tell the agent to read only grep hits, write interim results to the output path as it goes, and keep its context under ~150K tokens. List every input item and require a status for each: done, or skipped with the reason.
 
 Before acting on a claim a decision depends on, read the lines it cites yourself.
 
