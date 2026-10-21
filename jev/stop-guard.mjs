@@ -18,7 +18,8 @@ const TRANSCRIPT_TAIL = 200 * 1024;
 
 // Negatives: offers/questions to the user and completion reports.
 // Also: promises that wait on the user or are deferred (approval, next session, later).
-const KO_NEG = /원하시면|말씀해 ?주세요|할까요|될까요|알려 ?주세요|괜찮으시면|주시면|다음 세션|나중에|내일|완료했습니다|했습니다|되었습니다|통과했습니다/;
+// Conditions and waits (끝나면, 오면, 그때, 승인 후에, 보류) were all false positives in the 2026-10-19..21 log.
+const KO_NEG = /원하시면|말씀해 ?주세요|할까요|될까요|알려 ?주세요|괜찮으시면|주시면|다음 세션|나중에|내일|완료했습니다|했습니다|되었습니다|통과했습니다|[나지오주하되있]면\s|그러면|그때|\s때\s|후에|뒤에|그다음|보류|회차에/;
 const EN_NEG = /\blet me know\b|\bif you'd like\b|\bif you want\b|\bwould you like\b|\bshall I\b|\bwant me to\b|\b(?:once|after|when|if) you\b|\bnext session\b|\blater\b|\btomorrow\b|\b(done|completed)\b|\ball tests pass(ed)?\b|\bI(?:'ve| have)\s+(?!to\b)\w+/i;
 // Relative paths, URLs and emails are not caught by jev-tier guard(); keep them off the wire too.
 const PATH_URL_EMAIL = /\w\/\w|:\/\/|@\w+\./;

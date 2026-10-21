@@ -7,7 +7,7 @@ const test = (name, fn) => cases.push([name, fn]);
 const hb = (m) => JSON.stringify({ type: 'assistant', message: { content: [{ type: 'thinking' }, { type: 'tool_use', name: 'SubagentHandback', input: { message: m } }] } });
 
 test('status regex variants', () => {
-  for (const [first, want] of [['> DONE', 'DONE'], ['# PARTIAL', 'PARTIAL'], ['DONEX', 'unknown'], ['\n\n  BLOCKED - x', 'BLOCKED'], ['Here is my answer', 'unknown'], ['**BLOCKED**: nope', 'BLOCKED']]) {
+  for (const [first, want] of [['> DONE', 'DONE'], ['# PARTIAL', 'PARTIAL'], ['DONEX', 'unknown'], ['\n\n  BLOCKED - x', 'BLOCKED'], ['Here is my answer', 'unknown'], ['**BLOCKED**: nope', 'BLOCKED'], ['Status: DONE', 'DONE'], ['**Status:** PARTIAL - x', 'PARTIAL'], ['Status: done', 'unknown'], ['Status unclear', 'unknown']]) {
     assert.equal(readReport({ last_assistant_message: first }).status, want, first);
   }
 });

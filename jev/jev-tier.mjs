@@ -142,6 +142,7 @@ export async function run(input, { fetchImpl = fetch, now = Date.now, random = M
         latency_ms: out.latency_ms, fallback_reason: out.fallback_reason, order_shuffled: extra.order_shuffled ?? false,
         choice_changed: extra.choice_changed ?? null, effort_changed: extra.effort_changed ?? null, cached: extra.cached ?? false,
         jev_raw: extra.raw ?? null, floor_applied: extra.floor_applied ?? false, jev_model_alias: cfg.modelAlias, jev_model_resolved: extra.resolved ?? null,
+        fallback_detail: extra.detail ?? null, side_error: extra.side_error ?? null,
       });
       return out;
     };
@@ -178,7 +179,8 @@ export async function run(input, { fetchImpl = fetch, now = Date.now, random = M
       const [main, side] = await Promise.allSettled([call(body), doShuffle ? call(buildBody(t.summary, cfg.modelAlias, random)) : null]);
       if (main.status === 'rejected') {
         br.fail();
-        return fail(main.reason instanceof JevError ? main.reason.reason : 'network');
+        // JevError messages name the failed check only (never bodies or headers)
+        return main.reason instanceof JevError ? fail(main.reason.reason, { detail: main.reason.message }) : fail('network');
       }
       br.ok();
       res = main.value;
@@ -190,6 +192,7 @@ export async function run(input, { fetchImpl = fetch, now = Date.now, random = M
           order_shuffled: true,
           choice_changed: ok ? side.value.answers.model.choice !== res.answers.model.choice : null,
           effort_changed: ok ? effortOf(side.value.answers.effort) !== derived.effort : null,
+          side_error: ok ? null : side.reason instanceof JevError ? side.reason.message : 'network',
         };
       }
     }

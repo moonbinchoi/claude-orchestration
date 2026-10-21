@@ -105,7 +105,10 @@ for (const [name, m, rule] of [
 test('list-prefixed last line is graded without the marker', async () => {
   for (const m of ["Plan:\n- I'll run the tests.", "Plan:\n2. I'll run the tests.", '- 테스트를 실행하겠습니다.']) assert.equal((await ev(m)).record.verdict, 'would_block', m);
 });
-for (const m of ['승인해 주시면 마이그레이션을 적용하겠습니다.', '다음 세션에서 2b 단계를 진행하겠습니다.', '배포는 내일 확인하겠습니다.', "I'll apply the migration once you approve.", "I'll check back after you run the deploy.", 'I will fix the flaky test later.', 'The remaining work will be done in the next session.']) {
+for (const m of ['환경변수 변경과 폴더 삭제는 승인 후에 하겠습니다.', '어느 쪽이든 앱을 종료한 뒤에 진행하겠습니다.', '빌드가 끝나면 이어서 보고하겠습니다.', '그때 repo 개수를 확인하겠습니다.', '그러면 트랙 수업을 시작하겠습니다.', '9회차에 정할 때 직접 확인하겠습니다.', '고치는 일은 그다음에 정할게요.', '1~3번은 새 기준이 정해질 때까지 보류할게요.', '세션이 돌고 있지 않다고 확인해 주면 진행할게요.', 'C가 정해지면 확인하겠습니다.', '분석 결과가 오면 이어서 정리할게요.']) {
+  test(`ko condition or wait -> none: ${m}`, async () => { const r = await ev(m); assert.equal(r.record, null); assert.equal(r.f.calls, 0); });
+}
+for (const m of ['승인해 주시면 마이그레이션을 적용하겠습니다.','다음 세션에서 2b 단계를 진행하겠습니다.', '배포는 내일 확인하겠습니다.', "I'll apply the migration once you approve.", "I'll check back after you run the deploy.", 'I will fix the flaky test later.', 'The remaining work will be done in the next session.']) {
   test(`waits on user or deferred -> none: ${m}`, async () => { const r = await ev(m); assert.equal(r.record, null); assert.equal(r.f.calls, 0); });
 }
 for (const m of ['The fix is in place and the module is clean.', '최종 결과는 위와 같습니다.', 'Do you want me to run the tests?', "Let me know if you'd like me to continue.", 'All tests pass.', "I've updated the file.", 'The task is done.']) {

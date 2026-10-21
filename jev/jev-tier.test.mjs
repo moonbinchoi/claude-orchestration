@@ -75,8 +75,17 @@ test('validation rejection', async () => {
 });
 test('response over 64 KiB rejected', async () => {
   const j = payload({ haiku: 0.05, sonnet: 0.85, opus: 0.1 }); j.pad = 'x'.repeat(70 * 1024);
-  const r = await one(task(), opts(fixed(j)));
+  const o = opts(fixed(j));
+  const r = await one(task(), o);
   assert.equal(r.fallback_reason, 'invalid_response');
+  assert.equal(lines(o.dir)[0].fallback_detail, 'Response body exceeds 64 KiB.');
+});
+test('failed shuffled side call logs side_error', async () => {
+  const good = payload({ haiku: 0.05, sonnet: 0.85, opus: 0.1 });
+  const o = opts(mockFetch((n) => respond(n === 1 ? good : 'nope')), { random: () => 0 });
+  await one(task(), o);
+  const l = lines(o.dir)[0];
+  assert.equal(l.order_shuffled, true); assert.equal(l.choice_changed, null); assert.equal(l.side_error, 'Invalid response: not JSON');
 });
 test('timeout fail-open', async () => {
   const f = mockFetch((_, init) => new Promise((_, rej) => { const keep = setTimeout(() => {}, 5000); /* AbortSignal.timeout timers are unref'd */ init.signal.addEventListener('abort', () => { clearTimeout(keep); rej(init.signal.reason); }); }));
