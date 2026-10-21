@@ -24,14 +24,9 @@ Keep the work in the main conversation when it is a small task or a single looku
 
 ## Jev router
 
-For every subagent dispatch:
-- Write a 1-2 sentence English summary of the task. No secrets, paths, code, or raw user prompt. Non-English text is rejected.
-- Set `rule_model` to the `model` the Model section's cases or a skill would pass, else the agent's frontmatter model (`explorer` and `worker` haiku, `researcher` and `general-purpose` sonnet, `analyst` and `reviewer` opus); `inherit`, no frontmatter model, and forks mean the main model.
-- Run `node ~/.claude/jev/jev-tier.mjs` with `{"tasks":[{"id","summary","agent_type","rule_model","rule_effort"}]}` on stdin; batch tasks dispatched together. The tool logs itself.
-- Dispatch with the lower of `rule_model` and the output's `model` (haiku < sonnet < opus); pass it as `model` when it is lower than `rule_model`. Ignore the output's `effort`.
-- If the output's `model` is null (call failed, summary rejected), dispatch with `rule_model`. Rewrite a rejected summary in English at most once.
-- Keep `rule_model` without lowering when it is a user's explicit model choice (including `fable`), or a higher model passed under On BLOCKED.
-- Forks ignore `model`: run jev-tier for the log only.
+A PreToolUse hook lowers each dispatch's `model` to the lower of the rule model (the `model` you pass, else the agent's frontmatter model) and Jev's tier for the brief's `Summary:` line. Dispatch with the model the Model section chooses; never call jev-tier yourself.
+- The `Summary:` line is the only text sent to Jev: English, 1-2 sentences, no secrets, paths, code, or raw user prompt.
+- Add a line `Model-lock: <reason>` to the brief when the model must not be lowered: the user chose it, or On BLOCKED raised it.
 
 ## Model
 
@@ -43,9 +38,7 @@ Pass `model` only in these cases:
 - `reviewer`: `sonnet` for a small mechanical diff.
 - `fable`: only when the user asks for it.
 
-The Jev router may then pass a lower model.
-
-Run at most 2 Opus agents at once, counted after the Jev router: agents dispatched on opus, and forks of an Opus main. Several at once exhaust the usage limit.
+Run at most 2 Opus agents at once, counted by the model you dispatch with: `analyst` and `reviewer` without a `model` override, and forks of an Opus main. Several at once exhaust the usage limit.
 
 On BLOCKED:
 - `worker`: settle the judgment, in the main conversation or through `analyst`, and re-dispatch with a sharper brief. Pass a higher model only when the brief was already exact.
@@ -56,12 +49,12 @@ On BLOCKED:
 ## Brief
 
 Write every brief with these parts:
-- **Summary**: the first line, `Summary: <the English summary sent to jev-tier>`. When a task is split, name each piece's scope in it.
+- **Summary**: the first line, `Summary: <1-2 sentence English summary>`. When a task is split, name each piece's scope in it. When a dispatch repeats earlier work on purpose (A/B arms, calibration series, variants), add a line `Repeat: <reason>`.
 - **Goal**: the outcome and how to tell it is done.
 - **Context**: the paths, facts, and decisions the agent needs. Pass large inputs as file paths; leave out conversation history.
 - **Scope**: what to touch and what to leave. When sources are split across agents, name the sources the others cover.
 - **Skills**: the skills to invoke when the work follows a method, such as TDD. Choose them here; skills that question the user or dispatch subagents stay in the main conversation.
-- **Return**: the report shape, a length cap if it differs from the default, and an output path when the full result is long.
+- **Return**: the report shape, a length cap if it differs from the default, and an output path when the full result is long. When the agent edits files, require a `Files changed:` line followed by one bullet per edited path.
 
 For bulk input, tell the agent to read only grep hits, write interim results to the output path as it goes, and keep its context under ~150K tokens. List every input item and require a status for each: done, or skipped with the reason.
 
