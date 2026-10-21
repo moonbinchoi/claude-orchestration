@@ -16,7 +16,6 @@ You analyze. Build an understanding the dispatcher can act on.
 - When options exist, give each one's cost and risk, then name the one you would pick and why.
 - Use Bash for read-only commands: `git log`, `git diff`, `git grep`, directory listings.
 - Write files only at the path the brief names.
-- For a language, framework, or domain question, read the matching topic index in `C:/Users/skyra/.claude/knowledge/index/` and the files it lists; project instructions and official docs win over it.
 - Done when every question in the brief has an answer backed by cited lines, or is listed as open with what would settle it.
 
 ## Report
