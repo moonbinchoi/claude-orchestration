@@ -50,7 +50,14 @@ function validate(json, questions) {
   for (const [q, def] of Object.entries(questions)) {
     const a = json.answers[q];
     if (!a || typeof a !== 'object') throw bad(`missing answer ${q}`);
-    const expected = Object.keys(def.criteria);
+    const type = def.type ?? 'choice';
+    // noul answers carry only p in 0..1: {type: 'noul', noul: 0.63}
+    if (type === 'noul') {
+      if (typeof a.noul !== 'number' || !Number.isFinite(a.noul) || a.noul < 0 || a.noul > 1) throw bad(`noul ${q}`);
+      continue;
+    }
+    // score criteria are a list; probabilities are keyed by level index "0".."n-1"
+    const expected = type === 'score' ? def.criteria.map((_, i) => String(i)) : Object.keys(def.criteria);
     const p = a.probabilities;
     if (!p || typeof p !== 'object' || Array.isArray(p)) throw bad(`probabilities ${q}`);
     const keys = Object.keys(p);
@@ -64,7 +71,9 @@ function validate(json, questions) {
       max = Math.max(max, v);
     }
     if (Math.abs(sum - 1) > 1e-4) throw bad(`sum ${q}`);
-    if (typeof a.choice !== 'string' || !(a.choice in p) || p[a.choice] !== max) throw bad(`choice ${q}`);
+    if (type === 'score') {
+      if (typeof a.score !== 'number' || !Number.isFinite(a.score) || a.score < 0 || a.score > expected.length - 1) throw bad(`score ${q}`);
+    } else if (typeof a.choice !== 'string' || !(a.choice in p) || p[a.choice] !== max) throw bad(`choice ${q}`);
     if (typeof a.confidence !== 'number' || !Number.isFinite(a.confidence) || a.confidence < 0 || a.confidence > 1) throw bad(`confidence ${q}`);
   }
   return json;
@@ -73,7 +82,8 @@ function validate(json, questions) {
 export async function systemOne({ body, fetchImpl = fetch, signal, timeoutMs = 1500 }) {
   const key = process.env.TYPESAFE_API_KEY;
   if (!key) throw new JevError('credentials', 'credentials', 'TYPESAFE_API_KEY is not set.');
-  assertEnglish(body.state);
+  // object state (named fields) is checked as its JSON text, which keeps non-ASCII letters as-is
+  assertEnglish(typeof body.state === 'string' ? body.state : JSON.stringify(body.state));
   const abortError = () => {
     const isTimeout = signal.reason?.name === 'TimeoutError';
     return new JevError(isTimeout ? 'network' : 'cancelled', isTimeout ? 'timeout' : 'cancelled', isTimeout ? 'Deadline reached.' : 'Cancelled.');
