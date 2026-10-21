@@ -18,7 +18,7 @@ Keep the work in the main conversation when it is a small task or a single looku
 - Make the judgment before dispatching `worker`, in the main conversation or through `analyst`.
 - Split bulk input that needs judgment (log scans, 10 or more files) in two: `explorer` extracts candidates to a short file in a fixed format; `analyst` or the main conversation judges only that file, including dedupe and value.
 - Chain agents through the main conversation, for example `explorer` → `analyst` → `worker` → `reviewer`.
-- Send every review to `reviewer`, including reviews a skill dispatches as `general-purpose`, and keep the skill's prompt and model.
+- Send every review to `reviewer`, including reviews a skill dispatches as `general-purpose`, and keep the skill's prompt and model; the Jev router may still lower the model.
 - When `reviewer` checks a subagent's output, put `Verifies: <agent_id>` in its brief and require an `Exaggeration: none|minor|serious` line after its status line.
 - Use a fork when the task needs this conversation's context: it shares the cache but runs on the main model. Use a fresh agent otherwise.
 
@@ -26,11 +26,11 @@ Keep the work in the main conversation when it is a small task or a single looku
 
 For every subagent dispatch:
 - Write a 1-2 sentence English summary of the task. No secrets, paths, code, or raw user prompt. Non-English text is rejected.
-- Set `rule_model` to the model the Model section chooses: the `model` you would pass, else the agent's default (`explorer` and `worker` haiku, `researcher` and `general-purpose` sonnet, `analyst` and `reviewer` opus, any other agent the main model).
+- Set `rule_model` to the `model` the Model section's cases or a skill would pass, else the agent's frontmatter model (`explorer` and `worker` haiku, `researcher` and `general-purpose` sonnet, `analyst` and `reviewer` opus); `inherit`, no frontmatter model, and forks mean the main model.
 - Run `node ~/.claude/jev/jev-tier.mjs` with `{"tasks":[{"id","summary","agent_type","rule_model","rule_effort"}]}` on stdin; batch tasks dispatched together. The tool logs itself.
-- Dispatch with the lower of `rule_model` and the output's `model` (haiku < sonnet < opus). Ignore the output's `effort`.
+- Dispatch with the lower of `rule_model` and the output's `model` (haiku < sonnet < opus); pass it as `model` when it is lower than `rule_model`. Ignore the output's `effort`.
 - If the output's `model` is null (call failed, summary rejected), dispatch with `rule_model`. Rewrite a rejected summary in English at most once.
-- Keep `rule_model` without lowering when it is a user's explicit model choice, or a higher model passed under On BLOCKED.
+- Keep `rule_model` without lowering when it is a user's explicit model choice (including `fable`), or a higher model passed under On BLOCKED.
 - Forks ignore `model`: run jev-tier for the log only.
 
 ## Model
@@ -42,9 +42,10 @@ Pass `model` only in these cases:
 - `analyst`: `sonnet` when the input is bulk.
 - `reviewer`: `sonnet` for a small mechanical diff.
 - `fable`: only when the user asks for it.
-- Any agent: a lower model chosen by the Jev router.
 
-Run at most 2 Opus agents at once: `analyst` and `reviewer` without a `model` override, and forks of an Opus main. Several at once exhaust the usage limit.
+The Jev router may then pass a lower model.
+
+Run at most 2 Opus agents at once, counted after the Jev router: agents dispatched on opus, and forks of an Opus main. Several at once exhaust the usage limit.
 
 On BLOCKED:
 - `worker`: settle the judgment, in the main conversation or through `analyst`, and re-dispatch with a sharper brief. Pass a higher model only when the brief was already exact.
