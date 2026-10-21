@@ -77,6 +77,12 @@ test('verified: words inside paths do not trigger; researcher has no verified ty
   assert.deepEqual(types('DONE\nI verified the output.'), ['verified']);
   assert.deepEqual(types('DONE\nI verified the output.', { agentType: 'researcher' }), []);
 });
+test('Files changed: block gives one file_change per bullet (its first path) until a blank line or heading', () => {
+  const r = 'DONE\nFiles changed:\n- src/a.mjs\n- `src/b.mjs`: new helper\n  c.mjs and d.mjs\n- g.mjs: renamed from old.mjs\n## Notes\nThe notes.mjs stays.\n\nFiles changed:\n- e.mjs\n\n- f.mjs';
+  const { claims } = extractClaims(r, { random: () => 1 });
+  assert.deepEqual(claims.map((c) => [c.type, c.files]), [['file_change', ['a.mjs']], ['file_change', ['b.mjs']], ['file_change', ['g.mjs']], ['file_change', ['e.mjs']]]);
+  assert.deepEqual(types('DONE\nFiles changed:\n- a.mjs', { agentType: 'reviewer' }), []);
+});
 
 for (const [name, fn] of cases) {
   try { await fn(); console.log(`PASS ${name}`); } catch (e) { failed++; console.log(`FAIL ${name}\n  ${e.message.split('\n')[0]}`); }

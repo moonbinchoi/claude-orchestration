@@ -7,6 +7,8 @@ const NEG = /\b(not|n't|never|no|unchanged|untouched|without)\b/i;
 const URL = /https?:\/\/[^\s)>\]]+/i;
 const TEST_SUBJ = /\b(tests?|specs?|suites?|build|builds|lint|linting|typecheck|tsc|compiles?)\b/i;
 const TEST_OK = /\b(pass(?:es|ed|ing)?|succe\w+|green|clean|ok)\b/i;
+// structured handoff: items under a `Files changed:` line, until a blank line or heading, are one file_change claim per path
+const HANDOFF = /^Files changed:$/i;
 const FILES_HEADER = /^[\s*#>-]*\**(changed|created|modified|edited|touched|files?\s+(changed|created|modified|touched))\b[^.]*[:.]?\**\s*$/i;
 // suggestions and work by someone else are not this agent's own file changes
 const NOT_OWN = /\b(?:suggest\w*|recommend\w*|should|could|consider\w*)\b|\bfix:|\bthe (?:implementer|worker|author)\b/i;
@@ -56,17 +58,26 @@ export function extractClaims(report, { random = Math.random, rate = 0.05, agent
   const sample = [];
   let fence = false;
   let inFiles = false;
+  let handoff = false;
   let inFinding = false;
   let first = true;
   for (const raw of String(report).split('\n')) {
     if (raw.trim().startsWith('```')) { fence = !fence; continue; }
     if (fence) continue;
     const line = unquote(raw).replace(/`|\*\*/g, '').trim();
-    if (!line) { inFiles = false; inFinding = false; continue; }
+    if (!line) { inFiles = false; handoff = false; inFinding = false; continue; }
     if (first) { first = false; if (STATUS.test(line) && line.replace(STATUS, '').replace(/^\W+/, '') === '') continue; }
     if (/^#+\s/.test(line)) inFinding = false;
     if (FINDING.test(line.replace(BULLET, ''))) inFinding = true;
     if (inFinding) continue;
+    if (HANDOFF.test(line)) { handoff = true; continue; }
+    if (/^#+\s/.test(line)) handoff = false;
+    if (handoff) {
+      // one claim per bullet: its first path; later paths on the line are notes ("a.mjs: renamed from old.mjs")
+      const f = BULLET.test(line) ? noLib(line.replace(BULLET, '')).match(FILE)?.[1] : null;
+      if (f && agentType !== 'reviewer') claims.push({ type: 'file_change', original: line.replace(BULLET, '').slice(0, 300), files: [f] });
+      continue;
+    }
     const bullet = /^([-*]|\d+[.)])\s+/.test(line);
     if (FILES_HEADER.test(line) && !FILE.test(line)) { inFiles = true; continue; }
     if (inFiles && !bullet) inFiles = false;

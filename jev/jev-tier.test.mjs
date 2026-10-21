@@ -15,7 +15,7 @@ const answer = (p, over = {}) => {
 const E = { low: 0.05, medium: 0.1, high: 0.7, xhigh: 0.1, max: 0.05 };
 const payload = (m, e = E, mo = {}, eo = {}) => ({
   model: 'jev-1.13-test',
-  answers: { model: answer(m, mo), effort: answer(e, eo) },
+  answers: { model: answer(m, mo) },
   usage: { input_tokens: 10, output_tokens: 2 },
 });
 const respond = (obj, status = 200) => new Response(typeof obj === 'string' ? obj : JSON.stringify(obj), { status });
@@ -36,22 +36,11 @@ test('argmax picks highest', async () => {
   assert.equal(r.model, 'sonnet'); assert.equal(r.fallback_reason, null);
   assert.ok(Math.abs(r.margin - 0.75) < 1e-9);
 });
-test('margin<0.1 steps to higher tier of top two', async () => {
-  // sonnet 0.46 vs opus 0.40: margin .06; confidence ok (set explicitly)
-  const r = await one(task(), opts(fixed(payload({ haiku: 0.14, sonnet: 0.46, opus: 0.4 }, E, { confidence: 0.9 }))));
-  assert.equal(r.model, 'opus');
-  const r2 = await one(task(), opts(fixed(payload({ haiku: 0.46, sonnet: 0.1, opus: 0.44 }, E, { confidence: 0.9 }))));
-  assert.equal(r2.model, 'opus');
-});
 test('confidence<floor steps up one rung, caps at opus', async () => {
   const r = await one(task(), opts(fixed(payload({ haiku: 0.8, sonnet: 0.1, opus: 0.1 }, E, { confidence: 0.3 }))));
   assert.equal(r.model, 'sonnet');
   const r2 = await one(task(), opts(fixed(payload({ haiku: 0.05, sonnet: 0.05, opus: 0.9 }, E, { confidence: 0.3 }))));
   assert.equal(r2.model, 'opus');
-});
-test('effort argmax, no step-up', async () => {
-  const r = await one(task(), opts(fixed(payload({ haiku: 0.05, sonnet: 0.85, opus: 0.1 }, { low: 0.6, medium: 0.1, high: 0.1, xhigh: 0.1, max: 0.1 }, {}, { confidence: 0.1 }))));
-  assert.equal(r.effort, 'low');
 });
 test('validation rejection', async () => {
   const good = () => payload({ haiku: 0.05, sonnet: 0.85, opus: 0.1 });
@@ -61,7 +50,7 @@ test('validation rejection', async () => {
     bad_sum: (j) => { j.answers.model.probabilities = { haiku: 0.1, sonnet: 0.85, opus: 0.1 }; },
     choice_not_argmax: (j) => { j.answers.model.choice = 'haiku'; },
     conf_high: (j) => { j.answers.model.confidence = 1.5; },
-    conf_nan: (j) => { j.answers.effort.confidence = null; },
+    conf_nan: (j) => { j.answers.model.confidence = null; },
     neg_prob: (j) => { j.answers.model.probabilities = { haiku: -0.1, sonnet: 1.0, opus: 0.1 }; },
   };
   for (const [n, mut] of Object.entries(variants)) {
@@ -91,7 +80,7 @@ test('timeout fail-open', async () => {
   const f = mockFetch((_, init) => new Promise((_, rej) => { const keep = setTimeout(() => {}, 5000); /* AbortSignal.timeout timers are unref'd */ init.signal.addEventListener('abort', () => { clearTimeout(keep); rej(init.signal.reason); }); }));
   const dir = tmp(); writeFileSync(join(dir, 'config.json'), JSON.stringify({ attemptTimeoutMs: 50, deadlineMs: 200 }));
   const r = await one(task(), { fetchImpl: f, dir, random: () => 0.99 });
-  assert.equal(r.fallback_reason, 'timeout'); assert.equal(r.model, null); assert.equal(r.effort, null);
+  assert.equal(r.fallback_reason, 'timeout'); assert.equal(r.model, null);
 });
 test('http error maps to http_<status>', async () => {
   const r = await one(task(), opts(mockFetch(() => respond('secret body', 429))));
@@ -175,10 +164,10 @@ test('shadow log line has all fields', async () => {
   const o = opts(fixed(payload({ haiku: 0.05, sonnet: 0.85, opus: 0.1 })));
   await one(task(), o);
   const rec = lines(o.dir)[0];
-  const want = ['ts', 'id', 'summary', 'agent_type', 'rule_model', 'rule_effort', 'probs', 'model', 'effort', 'margin', 'confidence', 'latency_ms', 'fallback_reason', 'order_shuffled', 'choice_changed', 'effort_changed', 'cached', 'jev_model_alias', 'jev_model_resolved'];
+  const want = ['ts', 'id', 'summary', 'agent_type', 'rule_model', 'probs', 'model', 'margin', 'confidence', 'latency_ms', 'fallback_reason', 'order_shuffled', 'choice_changed', 'cached', 'jev_model_alias', 'jev_model_resolved'];
   for (const k of want) assert.ok(k in rec, k);
   assert.equal(rec.jev_model_resolved, 'jev-1.13-test'); assert.equal(rec.jev_model_alias, 'jev-latest');
-  assert.ok(rec.probs.model && rec.probs.effort);
+  assert.ok(rec.probs.model); assert.ok(!('effort' in rec) && !('effort_changed' in rec));
 });
 test('request shape and no key in outputs', async () => {
   let seen;
@@ -190,7 +179,7 @@ test('request shape and no key in outputs', async () => {
   const out = JSON.stringify(res);
   assert.ok(!out.includes('test-key-not-real'));
   assert.ok(!readFileSync(join(o.dir, 'shadow.jsonl'), 'utf8').includes('test-key-not-real'));
-  assert.equal(f.last.model, 'jev-latest'); assert.deepEqual(Object.keys(f.last.questions), ['model', 'effort']);
+  assert.equal(f.last.model, 'jev-latest'); assert.deepEqual(Object.keys(f.last.questions), ['model']);
 });
 test('breaker: batch of 3 parallel 500s opens the breaker', async () => {
   const o = opts(mockFetch(() => respond('x', 500)));
@@ -199,10 +188,6 @@ test('breaker: batch of 3 parallel 500s opens the breaker', async () => {
   assert.ok(rs.every((r) => r.fallback_reason === 'http_500'));
   const br = JSON.parse(readFileSync(join(o.dir, 'breaker.json'), 'utf8'));
   assert.ok(br.failures >= 3 && br.open_until > 0);
-});
-test('margin and confidence stacking (documented): haiku .45 / sonnet .40, conf .3 => opus', async () => {
-  const r = await one(task(), opts(fixed(payload({ haiku: 0.45, sonnet: 0.4, opus: 0.15 }, E, { confidence: 0.3 }))));
-  assert.equal(r.model, 'opus');
 });
 test('missing response model is allowed and logged as null', async () => {
   const j = payload({ haiku: 0.05, sonnet: 0.85, opus: 0.1 }); delete j.model;
@@ -235,14 +220,6 @@ test('corrupt cache entry is a miss, not internal_error', async () => {
   const r = await one(task(), o);
   assert.equal(r.fallback_reason, null); assert.equal(r.model, 'sonnet'); assert.equal(f.calls, 2);
 });
-test('effort tie picks higher effort; effort_changed logged', async () => {
-  const tieE = { low: 0.1, medium: 0.4, high: 0.4, xhigh: 0.05, max: 0.05 };
-  const f = mockFetch((n) => respond(payload({ haiku: 0.05, sonnet: 0.85, opus: 0.1 }, n === 1 ? tieE : { low: 0.9, medium: 0.025, high: 0.025, xhigh: 0.025, max: 0.025 })));
-  const o = opts(f, { random: () => 0 });
-  const r = await one(task(), o);
-  assert.equal(r.effort, 'high');
-  assert.equal(lines(o.dir)[0].effort_changed, true);
-});
 test('expired deadline => timeout, not cancelled', async () => {
   const dir = tmp(); writeFileSync(join(dir, 'config.json'), JSON.stringify({ deadlineMs: 1 }));
   const f = fixed(payload({ haiku: 0.05, sonnet: 0.85, opus: 0.1 }));
@@ -252,11 +229,15 @@ test('expired deadline => timeout, not cancelled', async () => {
   assert.equal(r.fallback_reason, 'timeout');
 });
 test('bad config values fall back to defaults', async () => {
-  const dir = tmp(); writeFileSync(join(dir, 'config.json'), JSON.stringify({ marginThreshold: 'x', deadlineMs: null, attemptTimeoutMs: -1e999, confidenceFloor: {} }));
+  const dir = tmp(); writeFileSync(join(dir, 'config.json'), JSON.stringify({ confidenceFloor: 'x', deadlineMs: null, attemptTimeoutMs: -1e999, biasSampleRate: {} }));
   const r = await one(task(), { fetchImpl: fixed(payload({ haiku: 0.05, sonnet: 0.85, opus: 0.1 })), dir, random: () => 0.99 });
   assert.equal(r.model, 'sonnet');
 });
 
+test('no margin rule: close top two stays argmax; rule_effort ignored', async () => {
+  const r = await one(task(), opts(fixed(payload({ haiku: 0.14, sonnet: 0.46, opus: 0.4 }, E, { confidence: 0.9 }))));
+  assert.equal(r.model, 'sonnet'); assert.ok(!('effort' in r));
+});
 test('floor: reviewer haiku pick -> sonnet, logged raw and floor_applied', async () => {
   const o = opts(fixed(payload({ haiku: 0.9, sonnet: 0.05, opus: 0.05 })));
   const r = await one(task('Fix a failing unit test in one module.', { agent_type: 'reviewer' }), o);

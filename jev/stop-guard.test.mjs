@@ -8,8 +8,7 @@ import { evaluate } from './stop-guard.mjs';
 
 process.env.TYPESAFE_API_KEY = 'test-key-not-real';
 
-const answer = (yes, over = {}) => ({ choice: yes >= 0.5 ? 'yes' : 'no', probabilities: { yes, no: 1 - yes }, confidence: Math.abs(2 * yes - 1), ...over });
-const payload = (yes, over) => ({ model: 'jev-1.13-test', answers: { promised_and_stopped: answer(yes, over) } });
+const payload = (p) => ({ model: 'jev-1.13-test', answers: { promised_and_stopped: { type: 'noul', noul: p } } });
 const respond = (obj, status = 200) => new Response(typeof obj === 'string' ? obj : JSON.stringify(obj), { status });
 const mockFetch = (handler) => { const f = async (url, init) => { f.calls++; f.last = JSON.parse(init.body); return handler(f.calls, init); }; f.calls = 0; return f; };
 const fixed = (obj, status) => mockFetch(() => respond(obj, status));
@@ -61,7 +60,6 @@ test('privacy: request body is exactly model/state/questions and state is only t
   assert.equal(r.f.last.state, EN_WEAK);
 });
 test('en weak with p_yes 0.6 -> pass', async () => assert.equal((await ev(EN_WEAK, fixed(payload(0.6)))).record.verdict, 'pass'));
-test('en weak yes but low confidence -> pass', async () => assert.equal((await ev(EN_WEAK, fixed(payload(0.9, { confidence: 0.5 })))).record.verdict, 'pass'));
 test('modelAlias from config', async () => {
   const dir = tmp(); cfg(dir, { modelAlias: 'jev-pinned' });
   const r = await ev(EN_WEAK, undefined, {}, { dir }); assert.equal(r.f.last.model, 'jev-pinned');
@@ -78,7 +76,7 @@ test('Jev AbortError -> pass + jev_error', async () => {
 });
 for (const [name, body] of [
   ['bad JSON', 'not json{'],
-  ['probabilities not summing to 1', { model: 'm', answers: { promised_and_stopped: { choice: 'yes', probabilities: { yes: 0.9, no: 0.3 }, confidence: 0.8 } } }],
+  ['noul out of range', { model: 'm', answers: { promised_and_stopped: { type: 'noul', noul: 1.5 } } }],
   ['missing keys', { model: 'm', answers: {} }],
 ]) {
   test(`Jev invalid response: ${name}`, async () => {
@@ -105,9 +103,38 @@ for (const [name, m, rule] of [
 test('list-prefixed last line is graded without the marker', async () => {
   for (const m of ["Plan:\n- I'll run the tests.", "Plan:\n2. I'll run the tests.", '- 테스트를 실행하겠습니다.']) assert.equal((await ev(m)).record.verdict, 'would_block', m);
 });
-for (const m of ['환경변수 변경과 폴더 삭제는 승인 후에 하겠습니다.', '어느 쪽이든 앱을 종료한 뒤에 진행하겠습니다.', '빌드가 끝나면 이어서 보고하겠습니다.', '그때 repo 개수를 확인하겠습니다.', '그러면 트랙 수업을 시작하겠습니다.', '9회차에 정할 때 직접 확인하겠습니다.', '고치는 일은 그다음에 정할게요.', '1~3번은 새 기준이 정해질 때까지 보류할게요.', '세션이 돌고 있지 않다고 확인해 주면 진행할게요.', 'C가 정해지면 확인하겠습니다.', '분석 결과가 오면 이어서 정리할게요.']) {
-  test(`ko condition or wait -> none: ${m}`, async () => { const r = await ev(m); assert.equal(r.record, null); assert.equal(r.f.calls, 0); });
+const MUST_BLOCK = ['테스트를 실행하면 결과를 확인하겠습니다.', '수정한 뒤에 테스트를 돌리겠습니다.', '그다음 테스트를 실행하겠습니다.', '수정이 끝나면 바로 커밋하겠습니다.', '파일을 수정한 후에 테스트를 실행하겠습니다.'];
+for (const m of MUST_BLOCK) {
+  test(`ko main acts next -> would_block: ${m}`, async () => { const r = await ev(m); assert.equal(r.record?.verdict, 'would_block'); assert.equal(r.f.calls, 0); });
 }
+// result/build waits are ambiguous by text (main may run the tests itself); they are graded, and skipped only while a subagent runs
+for (const m of ['테스트 결과가 나오면 바로 수정하겠습니다.', '빌드가 끝나면 배포 스크립트를 실행하겠습니다.', '수정을 보류하고 테스트부터 실행하겠습니다.', '그때그때 확인하겠습니다.', '결과가 모이면 검증한 뒤 정리할게요.']) {
+  test(`ko ambiguous wait -> graded: ${m}`, async () => { const r = await ev(m); assert.notEqual(r.record, null); assert.notEqual(r.record.prefilter, 'none'); });
+}
+for (const m of ['에이전트가 돌아오면 이어서 정리할게요.', '환경변수 변경과 폴더 삭제는 승인 후에 하겠습니다.', '앞서 제안한 1~3번은 새 기준이 정해질 때까지 보류할게요.', '세션이 돌고 있지 않다고 확인해 주면 진행할게요.', '그때 Step 1 인벤토리부터 시작하겠습니다.']) {
+  test(`ko wait on other party or deferral -> none: ${m}`, async () => { const r = await ev(m); assert.equal(r.record, null); assert.equal(r.f.calls, 0); });
+}
+test('known limitation: wait on unnamed subject is still graded', async () => {
+  assert.equal((await ev('4개가 모두 끝나면 핵심 수치를 직접 확인한 뒤 한꺼번에 정리할게요.')).record.prefilter, 'strong');
+});
+const regDir = (events) => { const dir = tmp(); writeFileSync(join(dir, 'registry.jsonl'), events.map((e) => JSON.stringify(e)).join('\n') + '\n'); return dir; };
+const regEvents = (stop) => [
+  { ts: new Date().toISOString(), event: 'dispatch', session_id: 's1', tool_use_id: 't1', subagent_type: 'worker' },
+  { ts: new Date().toISOString(), event: 'link', session_id: 's1', tool_use_id: 't1', agent_id: 'a1' },
+  ...(stop ? [{ ts: new Date().toISOString(), event: 'stop', session_id: 's1', agent_id: 'a1', status: 'completed' }] : []),
+];
+test('agents running -> pass with skip, no fetch', async () => {
+  const r = await ev(KO_STRONG, undefined, {}, { dir: regDir(regEvents(false)) });
+  assert.equal(r.record.verdict, 'pass'); assert.equal(r.record.skip, 'agents_running'); assert.equal(r.record.running_agents, 1); assert.equal(r.f.calls, 0);
+});
+test('agents stopped -> normal grading', async () => {
+  const r = await ev(KO_STRONG, undefined, {}, { dir: regDir(regEvents(true)) });
+  assert.equal(r.record.verdict, 'would_block'); assert.ok(!r.record.skip);
+});
+test('noul 0.9 -> would_block; question is noul type', async () => {
+  const r = await ev(EN_WEAK, fixed(payload(0.9)));
+  assert.equal(r.record.verdict, 'would_block'); assert.equal(r.f.last.questions.promised_and_stopped.type, 'noul'); assert.equal(r.record.jev_confidence, null);
+});
 for (const m of ['승인해 주시면 마이그레이션을 적용하겠습니다.','다음 세션에서 2b 단계를 진행하겠습니다.', '배포는 내일 확인하겠습니다.', "I'll apply the migration once you approve.", "I'll check back after you run the deploy.", 'I will fix the flaky test later.', 'The remaining work will be done in the next session.']) {
   test(`waits on user or deferred -> none: ${m}`, async () => { const r = await ev(m); assert.equal(r.record, null); assert.equal(r.f.calls, 0); });
 }

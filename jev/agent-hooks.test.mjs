@@ -8,7 +8,7 @@ import { evaluate } from './agent-hooks.mjs';
 
 process.env.TYPESAFE_API_KEY = 'test-key-not-real';
 
-const answer = (yes) => ({ choice: yes >= 0.5 ? 'yes' : 'no', probabilities: { yes, no: 1 - yes }, confidence: Math.abs(2 * yes - 1) });
+const answer = (p2) => ({ type: 'score', score: 2 * p2, confidence: p2, legend: ['a', 'b', 'c'], probabilities: { 0: (1 - p2) / 2, 1: (1 - p2) / 2, 2: p2 } });
 const payload = (yes) => ({ model: 'jev-1.13-test', answers: { same_task: answer(yes) } });
 const mockFetch = (handler) => { const f = async (url, init) => { f.calls++; f.last = JSON.parse(init.body); return handler(); }; f.calls = 0; return f; };
 const fixed = (yes) => mockFetch(() => new Response(JSON.stringify(payload(yes)), { status: 200 }));
@@ -109,7 +109,7 @@ test('near match + Jev yes -> would_deny semantic; state is only the summaries',
   const dir = tmp(); await launched(dir, A); const f = fixed(0.95);
   const r = await pre(dir, B, {}, { fetchImpl: f });
   assert.equal(r.rec.verdict, 'would_deny'); assert.equal(r.rec.kind, 'duplicate_semantic'); assert.ok(r.rec.near.score >= 0.5);
-  assert.equal(f.last.state, 'Task A: Audit the billing module for dead code\nTask B: Find unused code in billing');
+  assert.deepEqual(f.last.state, { task_a: 'Audit the billing module for dead code', task_b: 'Find unused code in billing' });
   assert.deepEqual(Object.keys(f.last), ['model', 'state', 'questions']); assert.equal(f.last.model, 'jev-latest');
   assert.ok(!JSON.stringify(f.last).includes('please go through'), 'prompt body must not leave the machine');
   assert.equal(r.rec.jev_p_yes, 0.95);
@@ -132,7 +132,7 @@ test('near match missing summary -> no_summary, no fetch', async () => {
 test('summary rejected by guard -> skipped, no fetch', async () => {
   const dir = tmp(); await launched(dir, A); const f = fixed(0.95);
   const r = await pre(dir, B.replace('Find unused code in billing', 'Find unused code in src/billing'), {}, { fetchImpl: f });
-  assert.equal(r.rec.jev_skipped, 'path_url_email'); assert.equal(f.calls, 0);
+  assert.equal(r.rec.jev_skipped, 'path_url_email'); assert.ok(!f.last?.questions?.same_task); // router-guard may call the shared fetch
   const r2 = await pre(dir, B.replace('Find unused code in billing', 'x'.repeat(301)), {}, { fetchImpl: f });
   assert.equal(r2.rec.jev_skipped, 'too_long');
 });
@@ -243,7 +243,6 @@ test('unwritable dir never throws', async () => {
 // ---- retry guard through the entry point ----
 const rcfg = (dir, mode) => writeFileSync(join(dir, 'config.json'), JSON.stringify({ retryGuard: { mode } }));
 const rlog = (dir) => lines(dir, 'retry-guard.jsonl');
-const jevAnswer = (yes) => mockFetch(() => new Response(JSON.stringify({ model: 'jev-1.13-test', answers: { same_cause: answer(yes) } }), { status: 200 }));
 const BR = 'Run the migration script and report the result of every step carefully';
 const preRun = (dir, id, prompt = BR, description = `d ${id}`) =>
   evaluate({ ...base, hook_event_name: 'PreToolUse', tool_name: 'Agent', tool_use_id: id, tool_input: { description, prompt, subagent_type: 'worker' } }, { dir });
@@ -259,12 +258,12 @@ test('retry: foreground and background order each give exactly one verdict', asy
 test('retry: DONE gives no verdict', async () => {
   const dir = tmp(); await fg(dir, 't1', 'a1', 'DONE'); assert.equal(rlog(dir).length, 0);
 });
-test('retry: same signature across attempts -> same_cause_repeat without Jev; enforce prints at link', async () => {
+test('retry: same signature across attempts -> same_cause_repeat; enforce prints at link', async () => {
   const dir = tmp(); rcfg(dir, 'enforce');
   await fg(dir, 't1', 'a1', 'BLOCKED: build failed with exit code 12 in step 3');
   const out = await fg(dir, 't2', 'a2', 'BLOCKED: build failed with exit code 99 in step 3');
   const v = rlog(dir).at(-1);
-  assert.equal(v.class, 'same_cause_repeat'); assert.equal(v.sig_equal, true); assert.equal(v.verdict, 'would_deny'); assert.equal(v.chain_len, 2); assert.equal(v.jev_p_yes, null);
+  assert.equal(v.class, 'same_cause_repeat'); assert.equal(v.sig_equal, true); assert.equal(v.verdict, 'would_deny'); assert.equal(v.chain_len, 2);
   assert.match(JSON.parse(out.output).hookSpecificOutput.additionalContext, /^Retry check: "d t2" failed again with the same cause as the previous attempt \(\d\d:\d\d\)\./);
 });
 test('retry: log mode gives null outputs', async () => {

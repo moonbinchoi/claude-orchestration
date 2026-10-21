@@ -21,6 +21,7 @@ test('fires on cli and claude-vscode; output shape and log', () => {
     assert.deepEqual(l, { ts: l.ts, kind: 'trigger', fired: true, skip_reason: null, entrypoint: ep, attended: null, session_id: 's1' });
   }
   assert.ok(TEXT.includes('main-pick.mjs "<summary>"') && !TEXT.includes('{'));
+  assert.ok(TEXT.includes('already matches') && TEXT.includes('same turn') && TEXT.includes('/model and /effort'));
 });
 test('skip: unattended (nested claude -p inherits ENTRYPOINT); attended 1 fires', () => {
   const d = tmp();

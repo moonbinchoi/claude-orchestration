@@ -8,9 +8,6 @@ import { afterEvent, judge, onDispatch } from './retry-guard.mjs';
 
 process.env.TYPESAFE_API_KEY = 'test-key-not-real';
 
-const answer = (yes) => ({ choice: yes >= 0.5 ? 'yes' : 'no', probabilities: { yes, no: 1 - yes }, confidence: Math.abs(2 * yes - 1) });
-const mockFetch = (handler) => { const f = async (url, init) => { f.calls++; f.last = JSON.parse(init.body); return handler(); }; f.calls = 0; return f; };
-const fixed = (yes) => mockFetch(() => new Response(JSON.stringify({ model: 'jev-1.13-test', answers: { same_cause: answer(yes) } }), { status: 200 }));
 const tmp = () => mkdtempSync(join(tmpdir(), 'rt-test-'));
 const lines = (dir, f) => (existsSync(join(dir, f)) ? readFileSync(join(dir, f), 'utf8').trim().split('\n').map((l) => JSON.parse(l)) : []);
 const cfg = (dir, mode) => writeFileSync(join(dir, 'config.json'), JSON.stringify({ retryGuard: { mode } }));
@@ -38,33 +35,21 @@ test('no failed prior -> new_cause chain 1; prior without failure too', async ()
   const r = await judge(dsp('t1', 'build failed'), null, {}); assert.deepEqual([r.class, r.chain_len, r.verdict], ['new_cause', 1, 'pass']);
   assert.equal((await judge(dsp('t2', 'build failed'), dsp('t1', null), {})).class, 'new_cause');
 });
-test('same signature -> same_cause_repeat without Jev; chain_len follows the prior', async () => {
-  const f = fixed(0.95);
-  const r = await judge(dsp('t2', 'build failed at step 3'), dsp('t1', 'build failed at step 9', { verdict: { chain_len: 2 } }), { fetchImpl: f });
-  assert.deepEqual([r.class, r.sig_equal, r.verdict, r.chain_len, r.prior_tool_use_id], ['same_cause_repeat', true, 'would_deny', 3, 't1']); assert.equal(f.calls, 0);
+test('same signature -> same_cause_repeat; chain_len follows the prior', async () => {
+  const r = await judge(dsp('t2', 'build failed at step 3'), dsp('t1', 'build failed at step 9', { verdict: { chain_len: 2 } }), {});
+  assert.deepEqual([r.class, r.sig_equal, r.verdict, r.chain_len, r.prior_tool_use_id], ['same_cause_repeat', true, 'would_deny', 3, 't1']);
 });
-test('low overlap -> new_cause without Jev', async () => {
-  const f = fixed(0.95); const r = await judge(dsp('t2', 'disk is full'), dsp('t1', 'build failed in alpha'), { fetchImpl: f });
-  assert.equal(r.class, 'new_cause'); assert.equal(f.calls, 0); assert.ok(r.jaccard < 0.5);
+test('low overlap -> new_cause', async () => {
+  const r = await judge(dsp('t2', 'disk is full'), dsp('t1', 'build failed in alpha'), {});
+  assert.equal(r.class, 'new_cause'); assert.ok(r.jaccard < 0.5);
 });
-test('near pair: Jev yes / no / low confidence / error', async () => {
-  const f = fixed(0.95);
-  const yes = await judge(dsp('t2', NEAR_B), dsp('t1', NEAR_A), { fetchImpl: f });
-  assert.deepEqual([yes.class, yes.verdict, yes.jev_p_yes], ['same_cause_repeat', 'would_deny', 0.95]);
-  assert.equal(f.last.state, `Failure A: ${NEAR_A}\nFailure B: ${NEAR_B}`); assert.deepEqual(Object.keys(f.last), ['model', 'state', 'questions']);
-  assert.deepEqual(yes.english_sent, [NEAR_A, NEAR_B]);
-  const no = await judge(dsp('t2', NEAR_B), dsp('t1', NEAR_A), { fetchImpl: fixed(0.05) }); assert.deepEqual([no.class, no.verdict], ['new_cause', 'pass']);
-  const low = await judge(dsp('t2', NEAR_B), dsp('t1', NEAR_A), { fetchImpl: fixed(0.6) }); assert.equal(low.class, 'unknown');
-  const err = await judge(dsp('t2', NEAR_B), dsp('t1', NEAR_A), { fetchImpl: mockFetch(() => new Response('boom', { status: 500 })) });
-  assert.deepEqual([err.class, err.jev_error, err.verdict], ['unknown', 'http_500', 'pass']);
+test('near pair with different signatures -> unknown, pass', async () => {
+  const r = await judge(dsp('t2', NEAR_B), dsp('t1', NEAR_A), {});
+  assert.deepEqual([r.class, r.verdict, r.sig_equal], ['unknown', 'pass', false]); assert.ok(r.jaccard >= 0.5);
 });
-test('missing cause or cause_en -> unknown with jev_skipped, no fetch', async () => {
-  const f = fixed(0.95);
-  const a = await judge({ ...dsp('t2', null), failure: classifyFailure({ text: 'BLOCKED', status: 'BLOCKED' }) }, dsp('t1', 'build failed'), { fetchImpl: f });
+test('missing cause -> unknown with jev_skipped', async () => {
+  const a = await judge({ ...dsp('t2', null), failure: classifyFailure({ text: 'BLOCKED', status: 'BLOCKED' }) }, dsp('t1', 'build failed'), {});
   assert.deepEqual([a.class, a.jev_skipped], ['unknown', 'no_cause']);
-  const ko = classifyFailure({ text: 'BLOCKED\n빌드 실패 모듈 알파 종료 코드', status: 'BLOCKED' });
-  const b = await judge({ ...dsp('t2', null), failure: ko }, { ...dsp('t1', null), failure: { ...ko, cause_sig: 'other' } }, { fetchImpl: f });
-  assert.deepEqual([b.class, b.jev_skipped], ['unknown', 'non_english']); assert.equal(f.calls, 0);
 });
 
 // ---- afterEvent ----

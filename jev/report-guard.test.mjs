@@ -24,14 +24,14 @@ const calls = [];
 const fetchImpl = async (u, init) => {
   calls.push(1);
   const q = Object.keys(JSON.parse(init.body).questions)[0];
-  return new Response(JSON.stringify({ model: 'm', answers: { [q]: { choice: 'none', probabilities: { none: 0.97, minor: 0.01, serious: 0.01, cannot_tell: 0.01 }, confidence: 0.96 } } }));
+  return new Response(JSON.stringify({ model: 'm', answers: { [q]: { choice: 'supports', probabilities: { supports: 0.97, contradicts: 0.015, says_nothing: 0.015 }, confidence: 0.96 } } }));
 };
 
 test('default mode log: one record with the full shape, nothing returned', async () => {
   const { dir, input, transcript } = setup();
   assert.equal(await onStop(input, { text, status: 'DONE', transcript, dir, fetchImpl, random: () => 1 }), undefined);
   const [r] = log(dir);
-  assert.deepEqual(Object.keys(r).sort(), ['agent_id', 'agent_type', 'claims', 'jev', 'jev_report', 'mode', 'session_id', 'skipped', 'status', 'transcript_bytes', 'truncated', 'ts', 'unextracted_sample', 'verdict'].sort());
+  assert.deepEqual(Object.keys(r).sort(), ['agent_id', 'agent_type', 'claims', 'jev', 'mode', 'session_id', 'skipped', 'status', 'transcript_bytes', 'truncated', 'ts', 'unextracted_sample', 'verdict'].sort());
   assert.deepEqual([r.mode, r.verdict, r.claims[0].type, r.session_id, r.agent_type], ['log', 'serious', 'test_pass', 's', 'worker']);
 });
 test('off writes nothing; enforce logs like log; bad mode falls back to log', async () => {
@@ -55,7 +55,7 @@ test('jevShadow defaults on; false gives the old record shape and no Jev call', 
   const on = setup();
   calls.length = 0;
   await onStop(on.input, { text, status: 'DONE', transcript: on.transcript, dir: on.dir, fetchImpl, random: () => 1 });
-  assert.deepEqual([calls.length, log(on.dir)[0].claims[0].jev_shadow.verdict, log(on.dir)[0].claims[0].verdict], [2, 'none', 'serious']);
+  assert.deepEqual([calls.length, log(on.dir)[0].claims[0].jev_shadow.verdict, log(on.dir)[0].claims[0].verdict], [1, 'none', 'serious']);
   const off = setup({ reportGuard: { jevShadow: false } });
   calls.length = 0;
   await onStop(off.input, { text, status: 'DONE', transcript: off.transcript, dir: off.dir, fetchImpl, random: () => 1 });

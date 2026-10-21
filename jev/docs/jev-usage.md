@@ -12,7 +12,8 @@ Leading word: **snap judgment**. Jev answers what a knowledgeable person could j
 
 ## Calling
 
-- Use `jev-client.mjs` `systemOne()` (strict validation, typed `JevError`, caller-owned timeout, 64 KiB cap). Every caller fails open to the non-Jev path.
+- Use `jev-client.mjs` `systemOne()` (strict validation of choice, score and noul answers, typed `JevError`, caller-owned timeout, 64 KiB cap). Every caller fails open to the non-Jev path.
+- Answer shapes (verified on jev-1.14.0): choice `{choice, probabilities, confidence}`; score (criteria is a LIST) `{score, confidence, legend, probabilities: {"0": p, ...}}`; noul `{noul: p}`.
 - Body `{model, state, questions}` to `POST https://api.typesafe.ai/v1/systemone`, key in env `TYPESAFE_API_KEY`.
 - Send the versioned ID from `config.json` `modelAlias` (now `jev-1.14.0`). Aliases move (`jev-latest` = 1.13.0, `jev-preview` = 1.14.0 on 2026-10-22); thresholds tuned on one version do not carry over. Run `node jev-tier.mjs doctor` after a release.
 - Errors: retry only 429/529 with backoff. `invalid_response` is our validator, not the API; its reason is in the error message, logged as `fallback_detail`.
@@ -62,7 +63,7 @@ Ordered scales (model tier, effort, severity) fit Score better than Choice. Our 
 
 ## Patterns
 
-**Tier routing** (`jev-tier.mjs`): Jev is a downgrade veto only: dispatch with min(rule tier, Jev tier). Jev alone drifts up (our log: opus 27% -> 59%; literature calls it routing collapse). One p_max gate. Criteria with concrete boundary tasks per tier. Effort output is unused.
+**Tier routing** (`jev-tier.mjs`, applied by `router-guard.mjs`): Jev is a downgrade veto only: dispatch with min(rule tier, Jev tier). Jev alone drifts up (our log: opus 27% -> 59%; literature calls it routing collapse). One p_max gate. Criteria state what each tier covers and does not cover. Sensitive work is kept at the rule tier in code, not by asking Jev.
 
 **Same or different** (`dispatch-guard.mjs`, `retry-guard.mjs`): a deterministic first pass (hash, Jaccard, error signature) decides most pairs. For near pairs use a 3-level Score (different / related, may or may not be the same / same) and act on the top level only. Intent (repeat on purpose, variant, retry) must be in the state as a field or marker; text cannot show it.
 
@@ -80,9 +81,9 @@ Ordered scales (model tier, effort, severity) fit Score better than Choice. Our 
 
 | File | Question | Status |
 |---|---|---|
-| `jev-tier.mjs` | tier (Choice 3) + effort (Choice 5) on a task summary | live as downgrade veto (rules "Jev router") |
-| `main-pick.mjs` | main-session tier + effort on the first prompt summary | live, advisory |
-| `stop-guard.mjs` | announced-then-stopped yes/no (English weak cases only) | log only; 0 true positives in about 320 stops |
-| `dispatch-guard.mjs` | same_task yes/no on two summaries | log only; field flags all intentional repeats |
-| `retry-guard.mjs` | same_cause yes/no on two redacted cause lines | log only; too little data |
-| `claim-judge.mjs`, `report-judge.mjs` | claim/evidence severity; report-level overstatement | log only; report-level at chance, drop |
+| `jev-tier.mjs` + `router-guard.mjs` | tier (Choice 3) on the brief's `Summary:` line; no effort question; confidence-floor step-up only | live: PreToolUse hook lowers `model` to min(rule, Jev); skips `Model-lock:`, fable, fork, unknown rule tier, sensitive summaries, rule at floor; log `router.jsonl` |
+| `main-pick.mjs` | main-session tier + effort on the first prompt summary | live, advisory; main proceeds in the same turn when the pick equals its model |
+| `stop-guard.mjs` | Noul "announced an action and stopped" (English weak cases only), p >= 0.85 | log only; skipped while a subagent runs |
+| `dispatch-guard.mjs` | Score 3 levels on `{task_a, task_b}`, duplicate at p("same") >= 0.85 | log only; `Repeat:` line marks intentional repeats |
+| `retry-guard.mjs` | none (deterministic signature; near pairs -> unknown) | log only |
+| `claim-judge.mjs` | claim/evidence relation (supports / contradicts / says_nothing); placeholder evidence is not sent | log only; report-level question removed (was at chance) |

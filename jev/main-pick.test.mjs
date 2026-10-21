@@ -38,16 +38,20 @@ test('alias from config.json', async () => {
   const f = fixed(payload()); await go({ summary: S }, f, d);
   assert.equal(f.last.model, 'jev-1.14.0');
 });
-test('low margin only', async () => {
+test('low margin (also under 0.6)', async () => {
   const { line } = await go({ summary: S }, fixed(payload({ haiku: 0.1, sonnet: 0.48, opus: 0.42 }, E, { confidence: 0.9 })));
-  assert.equal(line, 'Jev: sonnet 0.48 (opus 0.42, low margin) / effort medium 0.80');
+  assert.equal(line, 'Jev: sonnet 0.48 (opus 0.42, low margin, low confidence) / effort medium 0.80');
 });
-test('low confidence only', async () => {
-  const { line } = await go({ summary: S }, fixed(payload(M, E, { confidence: 0.5 })));
-  assert.equal(line, 'Jev: sonnet 0.85 (opus 0.10, low confidence) / effort medium 0.80');
+test('low confidence by p_max, not by confidence field', async () => {
+  const { line } = await go({ summary: S }, fixed(payload({ haiku: 0.1, sonnet: 0.59, opus: 0.31 }, E, { confidence: 0.9 })));
+  assert.equal(line, 'Jev: sonnet 0.59 (opus 0.31, low confidence) / effort medium 0.80');
+  assert.equal((await go({ summary: S }, fixed(payload(M, E, { confidence: 0.1 })))).line, 'Jev: sonnet 0.85 / effort medium 0.80');
+});
+test('p_max 0.61 with margin 0.3: no label', async () => {
+  assert.equal((await go({ summary: S }, fixed(payload({ haiku: 0.08, sonnet: 0.61, opus: 0.31 })))).line, 'Jev: sonnet 0.61 / effort medium 0.80');
 });
 test('both on effort', async () => {
-  const { line } = await go({ summary: S }, fixed(payload(M, { low: 0.1, medium: 0.4, high: 0.35, xhigh: 0.1, max: 0.05 }, {}, { confidence: 0.3 })));
+  const { line } = await go({ summary: S }, fixed(payload(M, { low: 0.1, medium: 0.4, high: 0.35, xhigh: 0.1, max: 0.05 }, {}, { confidence: 0.9 })));
   assert.equal(line, 'Jev: sonnet 0.85 / effort medium 0.40 (high 0.35, low margin, low confidence)');
 });
 for (const [name, mk, want] of [

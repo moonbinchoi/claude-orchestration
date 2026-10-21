@@ -11,7 +11,7 @@ import { PATH_URL_EMAIL, loadConfig } from './guard-common.mjs';
 
 const defaultDir = () => join(homedir(), '.claude', 'jev');
 const MARGIN = 0.1;
-const CONFIDENCE = 0.6;
+const P_MAX_LOW = 0.6;
 const ATTEMPT_MS = 1500;
 const DEADLINE_MS = 3000;
 
@@ -40,11 +40,11 @@ const QUESTIONS = {
   },
 };
 
-// top two answers of one question, with the runner-up shown when margin or confidence is weak
+// top two answers of one question, with the runner-up shown when margin or p_max is weak
 function show(a) {
   const [[c1, p1], [c2, p2]] = Object.entries(a.probabilities).sort((x, y) => y[1] - x[1]);
   const margin = p1 - p2;
-  const why = [margin < MARGIN && 'low margin', a.confidence < CONFIDENCE && 'low confidence'].filter(Boolean).join(', ');
+  const why = [margin < MARGIN && 'low margin', p1 < P_MAX_LOW && 'low confidence'].filter(Boolean).join(', ');
   return { margin, text: `${c1} ${p1.toFixed(2)}${why ? ` (${c2} ${p2.toFixed(2)}, ${why})` : ''}` };
 }
 

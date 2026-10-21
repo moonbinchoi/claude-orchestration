@@ -1,5 +1,5 @@
 // agent-hooks: hook entry for PreToolUse(Agent), PostToolUse(Agent), SubagentStop and UserPromptSubmit. Records events in the registry and
-// runs dispatch-guard, retry-guard and report-guard; UserPromptSubmit runs main-pick-trigger (first-prompt model hint). Each guard loads in its own try/catch so one broken module never stops the other
+// runs router-guard (model downgrade), dispatch-guard, retry-guard and report-guard; UserPromptSubmit runs main-pick-trigger (first-prompt model hint). Each guard loads in its own try/catch so one broken module never stops the other
 // or the recording. Fail-open, always exit 0.
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -30,7 +30,9 @@ function merge(outs) {
   const denies = hs.filter((h) => h.permissionDecision === 'deny');
   if (denies.length) return { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: denies.map((h) => h.permissionDecisionReason).join(' ') } };
   const ctx = hs.map((h) => h.additionalContext).filter(Boolean);
-  return ctx.length ? { hookSpecificOutput: { hookEventName: hs[0].hookEventName, additionalContext: ctx.join('\n') } } : null;
+  const upd = hs.find((h) => h.updatedInput);
+  if (!ctx.length && !upd) return null;
+  return { hookSpecificOutput: { hookEventName: hs[0].hookEventName, ...(upd && { permissionDecision: 'allow', updatedInput: upd.updatedInput }), ...(ctx.length && { additionalContext: ctx.join('\n') }) } };
 }
 
 export async function evaluate(input, { fetchImpl = fetch, dir = defaultDir(), now = Date.now, startedAt = now(), transcriptReader = readTail, loader = (f) => import(`./${f}`), env = process.env } = {}) {
@@ -42,10 +44,13 @@ export async function evaluate(input, { fetchImpl = fetch, dir = defaultDir(), n
 
   if (ev === 'PreToolUse' && input.tool_name === 'Agent') {
     if (typeof input.tool_input?.prompt !== 'string') return { output: null };
+    const ro = await attempt(async () => (await loader('router-guard.mjs')).onDispatch(input, { fetchImpl, dir, now }));
+    const updated = ro?.hookSpecificOutput?.updatedInput;
+    if (updated) input = { ...input, tool_input: updated }; // guards and the registry see the model actually dispatched
     const priors = readRegistry(dir, now(), sid).filter((d) => d.tool_use_id !== (input.tool_use_id ?? null));
     const dg = await attempt(async () => (await loader('dispatch-guard.mjs')).onDispatch(input, { priors, fetchImpl, dir, now }));
     const rg = await attempt(async () => (await loader('retry-guard.mjs')).onDispatch(input, { priors, sameAs: dg?.record?.same_as ?? null, dir, now }));
-    const merged = merge([dg?.output, rg]);
+    const merged = merge([ro, dg?.output, rg]);
     // a denied dispatch is not registered; the fallback event (dispatch-guard broken) comes from the same builder
     if (merged?.hookSpecificOutput.permissionDecision !== 'deny') append(dir, 'registry.jsonl', dg?.event ?? dispatchEvent(input, ts()));
     return out(merged);
