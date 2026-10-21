@@ -22,15 +22,16 @@ Keep the work in the main conversation when it is a small task or a single looku
 - When `reviewer` checks a subagent's output, put `Verifies: <agent_id>` in its brief and require an `Exaggeration: none|minor|serious` line after its status line.
 - Use a fork when the task needs this conversation's context: it shares the cache but runs on the main model. Use a fresh agent otherwise.
 
-## Jev shadow log
-
-Shadow phase: Jev's result is logged only; the model still comes from the rules above.
+## Jev router
 
 For every subagent dispatch:
 - Write a 1-2 sentence English summary of the task. No secrets, paths, code, or raw user prompt. Non-English text is rejected.
-- Run `node ~/.claude/jev/jev-tier.mjs` with `{"tasks":[{"id","summary","agent_type","rule_model","rule_effort"}]}` on stdin. Set `rule_model` to the model the rules above choose; batch tasks dispatched together.
-- Dispatch with the model the rules above choose. Ignore the output and record nothing else; the tool logs itself.
-- If the call fails or the summary is rejected, dispatch anyway. Rewrite in English at most once.
+- Set `rule_model` to the model the Model section chooses: the `model` you would pass, else the agent's default (`explorer` and `worker` haiku, `researcher` and `general-purpose` sonnet, `analyst` and `reviewer` opus, any other agent the main model).
+- Run `node ~/.claude/jev/jev-tier.mjs` with `{"tasks":[{"id","summary","agent_type","rule_model","rule_effort"}]}` on stdin; batch tasks dispatched together. The tool logs itself.
+- Dispatch with the lower of `rule_model` and the output's `model` (haiku < sonnet < opus). Ignore the output's `effort`.
+- If the output's `model` is null (call failed, summary rejected), dispatch with `rule_model`. Rewrite a rejected summary in English at most once.
+- Keep `rule_model` without lowering when it is a user's explicit model choice, or a higher model passed under On BLOCKED.
+- Forks ignore `model`: run jev-tier for the log only.
 
 ## Model
 
@@ -41,6 +42,7 @@ Pass `model` only in these cases:
 - `analyst`: `sonnet` when the input is bulk.
 - `reviewer`: `sonnet` for a small mechanical diff.
 - `fable`: only when the user asks for it.
+- Any agent: a lower model chosen by the Jev router.
 
 Run at most 2 Opus agents at once: `analyst` and `reviewer` without a `model` override, and forks of an Opus main. Several at once exhaust the usage limit.
 
