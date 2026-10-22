@@ -11,7 +11,7 @@ Delegate when the work:
 - produces verbose output the main conversation will not reread: test, build, and lint runs, log scans, documentation lookups;
 - splits into 3 or more independent pieces, such as several research questions. Dispatch the pieces in parallel, in one message.
 
-Keep the work in the main conversation when it is a small task or a single lookup, when each step needs the previous step's full output, when it edits files other running work also edits, or when it needs back-and-forth with the user.
+Keep the work in the main conversation when it needs fewer than 3 tool turns, when each step needs the previous step's full output, when it edits files other running work also edits, or when it needs back-and-forth with the user.
 
 ## Routing
 
