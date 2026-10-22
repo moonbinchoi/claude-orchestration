@@ -50,11 +50,13 @@ On BLOCKED:
 
 Write every brief with these parts:
 - **Summary**: the first line, `Summary: <1-2 sentence English summary>`. When a task is split, name each piece's scope in it. When a dispatch repeats earlier work on purpose (A/B arms, calibration series, variants), add a line `Repeat: <reason>`.
-- **Goal**: the outcome and how to tell it is done.
-- **Context**: the paths, facts, and decisions the agent needs. Pass large inputs as file paths; leave out conversation history.
+- **Goal**: the outcome and a checkable completion criterion that covers every item in scope ("every caller updated", not "verify the change").
+- **Context**: the paths, facts, and decisions the agent needs, and where to start looking. Pass large inputs as file paths; leave out conversation history.
 - **Scope**: what to touch and what to leave. When sources are split across agents, name the sources the others cover.
 - **Skills**: the skills to invoke when the work follows a method, such as TDD. Choose them here; skills that question the user or dispatch subagents stay in the main conversation.
 - **Return**: the report shape, a length cap if it differs from the default, and an output path when the full result is long. When the agent edits files, require a `Files changed:` line followed by one bullet per edited path.
+
+State each instruction as the behaviour to perform. Keep prohibitions for hard boundaries, each paired with what to do instead.
 
 For bulk input, tell the agent to read only grep hits, write interim results to the output path as it goes, and keep its context under ~150K tokens. List every input item and require a status for each: done, or skipped with the reason.
 
