@@ -34,6 +34,21 @@ const MODEL_Q = {
   },
 };
 
+export const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
+// Score (ordered levels, situations not degrees); shadow only: logged, never applied
+const EFFORT_Q = {
+  type: 'score',
+  instructions:
+    'Rate the reasoning effort a subagent needs to complete the described work well on the first attempt. Judge the difficulty of the decisions inside the work, not its length.' + INSTRUCTIONS,
+  criteria: [
+    'The brief fixes every step; the subagent runs commands or exact edits and reports.',
+    'One routine judgment along a clear path, such as picking among a few known options inside one file or one document.',
+    'Several dependent steps, or a review against many criteria, where a mistake in one step changes the next.',
+    'A hard problem across many interacting parts, such as root-cause reasoning across modules or a design with competing constraints.',
+    'Subtle or high-stakes reasoning where an error is costly and hard to notice, such as a correctness argument or an irreversible decision.',
+  ],
+};
+
 function shuffled(obj, random) {
   const keys = Object.keys(obj);
   for (let i = keys.length - 1; i > 0; i--) {
@@ -43,12 +58,13 @@ function shuffled(obj, random) {
   return Object.fromEntries(keys.map((k) => [k, obj[k]]));
 }
 
+// random given = the shuffled bias-sample request: model question only
 function buildBody(summary, alias, random) {
   const m = random ? shuffled(MODEL_Q.criteria, random) : MODEL_Q.criteria;
   return {
     model: alias,
     state: summary,
-    questions: { model: { ...MODEL_Q, criteria: m } },
+    questions: random ? { model: { ...MODEL_Q, criteria: m } } : { model: MODEL_Q, effort: EFFORT_Q },
   };
 }
 
@@ -111,7 +127,8 @@ export async function run(input, { fetchImpl = fetch, now = Date.now, random = M
   const one = async (t) => {
     const start = now();
     const base = { id: t?.id ?? null, agent_type: t?.agent_type ?? null };
-    const out = { id: base.id, model: null, probs: null, margin: null, fallback_reason: null, latency_ms: 0 };
+    const out = { id: base.id, model: null, probs: null, margin: null, effort: null, effort_score: null, fallback_reason: null, latency_ms: 0 };
+    let effortAns = null;
     const finish = (extra = {}) => {
       out.latency_ms = extra.cached ? 0 : now() - start;
       log({
@@ -121,6 +138,7 @@ export async function run(input, { fetchImpl = fetch, now = Date.now, random = M
         choice_changed: extra.choice_changed ?? null, cached: extra.cached ?? false,
         jev_raw: extra.raw ?? null, floor_applied: extra.floor_applied ?? false, jev_model_alias: cfg.modelAlias, jev_model_resolved: extra.resolved ?? null,
         fallback_detail: extra.detail ?? null, side_error: extra.side_error ?? null,
+        effort_score: out.effort_score, effort_probs: effortAns?.probabilities ?? null, effort_confidence: effortAns?.confidence ?? null, effort: out.effort,
       });
       return out;
     };
@@ -135,7 +153,7 @@ export async function run(input, { fetchImpl = fetch, now = Date.now, random = M
 
     const body = buildBody(t.summary, cfg.modelAlias);
     const order = Object.keys(body.questions.model.criteria);
-    const cacheFile = join(dir, 'cache', createHash('sha1').update(cfg.modelAlias + t.summary + JSON.stringify(order) + JSON.stringify(MODEL_Q)).digest('hex') + '.json');
+    const cacheFile = join(dir, 'cache', createHash('sha1').update(cfg.modelAlias + t.summary + JSON.stringify(order) + JSON.stringify(MODEL_Q) + JSON.stringify(EFFORT_Q)).digest('hex') + '.json');
     let res = null;
     let cached = false;
     const derive = (r) => ({
@@ -152,7 +170,7 @@ export async function run(input, { fetchImpl = fetch, now = Date.now, random = M
     if (!res) {
       if (br.open) return fail('circuit_open');
       const doShuffle = random() < cfg.biasSampleRate;
-      const call = (b) => systemOne({ body: b, fetchImpl, signal, timeoutMs: cfg.attemptTimeoutMs });
+      const call = (b) => systemOne({ body: b, fetchImpl, signal, timeoutMs: cfg.attemptTimeoutMs, optional: ['effort'] });
       const [main, side] = await Promise.allSettled([call(body), doShuffle ? call(buildBody(t.summary, cfg.modelAlias, random)) : null]);
       if (main.status === 'rejected') {
         br.fail();
@@ -179,6 +197,9 @@ export async function run(input, { fetchImpl = fetch, now = Date.now, random = M
     out.model = floorApplied ? floor : raw;
     out.margin = derived.d.margin;
     out.probs = derived.probs;
+    // no confidence step-up for effort: the expected value already carries the uncertainty
+    effortAns = res.answers.effort ?? null;
+    if (effortAns) { out.effort = EFFORTS[Math.round(effortAns.score)]; out.effort_score = effortAns.score; }
     return finish({ ...shuffleInfo, raw, floor_applied: floorApplied, cached, confidence: res.answers.model.confidence, resolved: res.model });
   };
 

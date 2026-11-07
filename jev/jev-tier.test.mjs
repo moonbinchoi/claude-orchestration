@@ -12,12 +12,14 @@ const answer = (p, over = {}) => {
   const choice = Object.entries(p).sort((a, b) => b[1] - a[1])[0][0];
   return { choice, probabilities: p, confidence: conf(p), ...over };
 };
-const E = { low: 0.05, medium: 0.1, high: 0.7, xhigh: 0.1, max: 0.05 };
+const E = 2; // effort Score expected value -> 'high'
+const effortAns = (score, over = {}) => ({ type: 'score', score, confidence: 0.5, legend: [], probabilities: { 0: 0.1, 1: 0.2, 2: 0.4, 3: 0.2, 4: 0.1 }, ...over });
 const payload = (m, e = E, mo = {}, eo = {}) => ({
   model: 'jev-1.13-test',
-  answers: { model: answer(m, mo) },
+  answers: { model: answer(m, mo), ...(e === null ? {} : { effort: effortAns(e, eo) }) },
   usage: { input_tokens: 10, output_tokens: 2 },
 });
+const src = readFileSync(new URL('./jev-tier.mjs', import.meta.url), 'utf8');
 const respond = (obj, status = 200) => new Response(typeof obj === 'string' ? obj : JSON.stringify(obj), { status });
 const mockFetch = (handler) => { const f = async (url, init) => { f.calls++; f.last = JSON.parse(init.body); return handler(f.calls, init, f.last); }; f.calls = 0; return f; };
 const fixed = (obj) => mockFetch(() => respond(obj));
@@ -164,10 +166,10 @@ test('shadow log line has all fields', async () => {
   const o = opts(fixed(payload({ haiku: 0.05, sonnet: 0.85, opus: 0.1 })));
   await one(task(), o);
   const rec = lines(o.dir)[0];
-  const want = ['ts', 'id', 'summary', 'agent_type', 'rule_model', 'probs', 'model', 'margin', 'confidence', 'latency_ms', 'fallback_reason', 'order_shuffled', 'choice_changed', 'cached', 'jev_model_alias', 'jev_model_resolved'];
+  const want = ['ts', 'id', 'summary', 'agent_type', 'rule_model', 'probs', 'model', 'margin', 'confidence', 'latency_ms', 'fallback_reason', 'order_shuffled', 'choice_changed', 'cached', 'jev_model_alias', 'jev_model_resolved', 'effort_score', 'effort_probs', 'effort_confidence', 'effort'];
   for (const k of want) assert.ok(k in rec, k);
   assert.equal(rec.jev_model_resolved, 'jev-1.13-test'); assert.equal(rec.jev_model_alias, 'jev-latest');
-  assert.ok(rec.probs.model); assert.ok(!('effort' in rec) && !('effort_changed' in rec));
+  assert.ok(rec.probs.model); assert.equal(rec.effort, 'high'); assert.ok(!('effort_changed' in rec));
 });
 test('request shape and no key in outputs', async () => {
   let seen;
@@ -179,7 +181,7 @@ test('request shape and no key in outputs', async () => {
   const out = JSON.stringify(res);
   assert.ok(!out.includes('test-key-not-real'));
   assert.ok(!readFileSync(join(o.dir, 'shadow.jsonl'), 'utf8').includes('test-key-not-real'));
-  assert.equal(f.last.model, 'jev-latest'); assert.deepEqual(Object.keys(f.last.questions), ['model']);
+  assert.equal(f.last.model, 'jev-latest'); assert.deepEqual(Object.keys(f.last.questions), ['model', 'effort']);
 });
 test('breaker: batch of 3 parallel 500s opens the breaker', async () => {
   const o = opts(mockFetch(() => respond('x', 500)));
@@ -236,7 +238,33 @@ test('bad config values fall back to defaults', async () => {
 
 test('no margin rule: close top two stays argmax; rule_effort ignored', async () => {
   const r = await one(task(), opts(fixed(payload({ haiku: 0.14, sonnet: 0.46, opus: 0.4 }, E, { confidence: 0.9 }))));
-  assert.equal(r.model, 'sonnet'); assert.ok(!('effort' in r));
+  assert.equal(r.model, 'sonnet'); assert.equal(r.effort, 'high');
+});
+test('effort: score rounds to a level, no step-up', async () => {
+  for (const [s, lvl] of [[0, 'low'], [1.4, 'medium'], [1.5, 'high'], [3.6, 'max']]) {
+    const r = await one(task(), opts(fixed(payload({ haiku: 0.05, sonnet: 0.85, opus: 0.1 }, s, {}, { confidence: 0.1 }))));
+    assert.equal(r.effort, lvl, String(s)); assert.equal(r.effort_score, s);
+  }
+});
+test('effort: missing or bad effort answer -> effort null, model kept', async () => {
+  for (const j of [payload({ haiku: 0.05, sonnet: 0.85, opus: 0.1 }, null), payload({ haiku: 0.05, sonnet: 0.85, opus: 0.1 }, 7)]) {
+    const r = await one(task(), opts(fixed(j)));
+    assert.equal(r.model, 'sonnet'); assert.equal(r.effort, null); assert.equal(r.fallback_reason, null);
+  }
+});
+test('effort: shadow line carries effort fields; side call asks model only', async () => {
+  const f = mockFetch((n, init, body) => respond(payload({ haiku: 0.05, sonnet: 0.85, opus: 0.1 }, body.questions.effort ? 2 : null)));
+  const o = opts(f, { random: () => 0.1 }); // < biasSampleRate: side call happens
+  await one(task(), o);
+  const rec = lines(o.dir)[0];
+  assert.equal(rec.effort, 'high'); assert.equal(rec.effort_score, 2); assert.equal(rec.effort_confidence, 0.5); assert.equal(rec.effort_probs['2'], 0.4);
+  assert.equal(f.calls, 2);
+});
+test('cache hit keeps effort; the cache key depends on EFFORT_Q', async () => {
+  const f = fixed(payload({ haiku: 0.05, sonnet: 0.85, opus: 0.1 }, 3)); const o = opts(f);
+  const a = await one(task(), o); const b = await one(task(), o);
+  assert.equal(f.calls, 1); assert.equal(a.effort, 'xhigh'); assert.equal(b.effort, 'xhigh');
+  assert.ok(src.includes('JSON.stringify(EFFORT_Q)')); // old model-only entries hash differently, so they are never read
 });
 test('floor: reviewer haiku pick -> sonnet, logged raw and floor_applied', async () => {
   const o = opts(fixed(payload({ haiku: 0.9, sonnet: 0.05, opus: 0.05 })));
