@@ -15,7 +15,7 @@ Leading word: **snap judgment**. Jev answers what a knowledgeable person could j
 - Use `jev-client.mjs` `systemOne()` (strict validation of choice, score and noul answers, typed `JevError`, caller-owned timeout, 64 KiB cap). Every caller fails open to the non-Jev path.
 - Answer shapes (verified on jev-1.14.0): choice `{choice, probabilities, confidence}`; score (criteria is a LIST) `{score, confidence, legend, probabilities: {"0": p, ...}}`; noul `{noul: p}`.
 - Body `{model, state, questions}` to `POST https://api.typesafe.ai/v1/systemone`, key in env `TYPESAFE_API_KEY`.
-- Send the versioned ID from `config.json` `modelAlias` (now `jev-1.14.0`). Aliases move (`jev-latest` = 1.13.0, `jev-preview` = 1.14.0 on 2026-10-22); thresholds tuned on one version do not carry over. Run `node jev-tier.mjs doctor` after a release.
+- Send the versioned ID from `config.json` `modelAlias` (now `jev-1.14.0`). Aliases move (`jev-latest` = 1.13.0, `jev-preview` = 1.14.0 on 2026-10-22; `jev-latest` = 1.14.0 by doctor on 2026-11-07); thresholds tuned on one version do not carry over. Run `node jev-tier.mjs doctor` after a release.
 - Errors: retry only 429/529 with backoff. `invalid_response` is our validator, not the API; its reason is in the error message, logged as `fallback_detail`.
 - Batch every question about one state into one request (fan-out); batching does not change answers.
 - Limits: 64k tokens per request, 32k per question.
@@ -26,11 +26,14 @@ Pick the type whose answer code can act on directly.
 
 | Type | Use for | Returns |
 |---|---|---|
-| Noul | one yes/no condition, phrased so high = yes | `p` only |
-| Choice | unordered options (up to 255) | `choice`, `probabilities`, `confidence` |
-| Score | ordered levels; describe situations, not degrees | expected value, `confidence` |
+| Noul | one yes/no condition, phrased so high = yes; `criteria` `{true, false}` optional | `p` only, no confidence (`abs(2p-1)` if one is needed) |
+| Choice | unordered options (1-255; descriptions may be null) | `choice`, `probabilities`, `confidence` |
+| Score | ordered levels (2-10 per score.md); describe situations, not degrees; one dimension | expected value, `confidence`, `legend`, `probabilities` |
+| Box | where one target is in an image; no `criteria` | `box` `{top, bottom, left, right}` as 0-1 fractions from top-left, `confidence` |
 
 Ordered scales (model tier, effort, severity) fit Score better than Choice. Our current code uses 2-option Choice for yes/no; Noul is the documented type.
+
+Box is image-only and "Dreamer-ready" (not production; format may change). It needs header `TypeSafe-Danger-Zone-Images: true` and Jev 1.14, images go in the `assets` map, and `jev-client.mjs` does not validate Box answers. It always returns a box, even for an absent target: pair it with a Noul for presence. None of our integrations send images.
 
 ## Writing questions
 
