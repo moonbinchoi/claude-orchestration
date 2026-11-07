@@ -2,7 +2,7 @@
 // router.mode in config.json: 'apply' (default) | 'log' (compute and log only) | 'off'. Fail-open; never logs the prompt.
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { run, FLOOR } from './jev-tier.mjs';
 import { append } from './registry.mjs';
 import { readJson } from './guard-common.mjs';
@@ -19,9 +19,14 @@ const agentModel = (agentsDir, name) => {
   try { text = readFileSync(join(agentsDir, `${name}.md`), 'utf8'); } catch { return undefined; }
   return text.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1].match(/^model:\s*(\S+)/m)?.[1]?.toLowerCase() ?? null;
 };
-// a project agent overrides the user agent of the same name
+// a project agent overrides the user agent of the same name; walk up from cwd, which can be a project subfolder
+const projectModel = (dir, name) => {
+  const found = agentModel(join(dir, '.claude', 'agents'), name);
+  const up = dirname(dir);
+  return found !== undefined || up === dir ? found : projectModel(up, name);
+};
 const ruleTierOf = (name, cwd, agentsDir) => {
-  const project = typeof cwd === 'string' ? agentModel(join(cwd, '.claude', 'agents'), name) : undefined;
+  const project = typeof cwd === 'string' ? projectModel(resolve(cwd), name) : undefined;
   return project !== undefined ? project : agentModel(agentsDir, name) ?? null;
 };
 
@@ -43,14 +48,17 @@ export async function onDispatch(input, { fetchImpl = fetch, dir, now = Date.now
   if (/^Model-lock:\s*\S/im.test(ti.prompt)) { rec.skip = 'model_lock'; return finish(); }
   if (m === 'fable') { rec.skip = 'fable'; return finish(); }
   if (type === 'fork') { rec.skip = 'fork'; return finish(); }
-  if (!TIERS.includes(rule)) { rec.skip = 'rule_unknown'; return finish(); }
+  // shadow: Jev is still called and logged so every dispatch has evaluation data, but its answer is never applied
   if (SENSITIVE.test(summary)) { rec.skip = 'sensitive'; return finish(); }
+  let shadow = null;
+  if (!TIERS.includes(rule)) shadow = 'rule_unknown';
   // nothing to lower: the rule tier is already the lowest tier Jev's answer can end at (haiku, or the agent's floor)
-  if (TIERS.indexOf(rule) <= TIERS.indexOf(FLOOR[type] ?? 'haiku')) { rec.skip = 'at_floor'; return finish(); }
+  else if (TIERS.indexOf(rule) <= TIERS.indexOf(FLOOR[type] ?? 'haiku')) shadow = 'at_floor';
 
   const [r] = await run({ tasks: [{ id: input.tool_use_id ?? null, summary, agent_type: type, rule_model: rule }] }, { fetchImpl, dir, now, deadlineMs: DEADLINE_MS });
   rec.jev_model = r?.model ?? null;
-  if (!rec.jev_model) rec.skip = `jev: ${r?.fallback_reason ?? 'error'}`;
+  if (shadow) rec.skip = shadow;
+  else if (!rec.jev_model) rec.skip = `jev: ${r?.fallback_reason ?? 'error'}`;
   else if (TIERS.indexOf(rec.jev_model) >= TIERS.indexOf(rule)) rec.skip = 'not_lower';
   else if (mode === 'log') rec.skip = 'log_mode';
   else {

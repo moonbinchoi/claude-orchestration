@@ -60,14 +60,24 @@ test('skips make no Jev call and log the reason', async () => {
     model_lock: input({ prompt: 'Summary: Rename a variable.\nModel-lock: user asked for opus' }),
     fable: input({ model: 'fable' }),
     fork: input({ subagent_type: 'fork' }),
-    rule_unknown: input({ subagent_type: 'odd' }),
     sensitive: input({ prompt: 'Summary: Review the deploy script for errors.' }),
   };
   for (const [reason, inp] of Object.entries(skips)) {
     const { out, f, dir } = await go(inp, HAIKU);
     assert.equal(out, null, reason); assert.equal(f.calls, 0, reason); assert.equal(logOf(dir)[0].skip, reason, reason);
   }
-  assert.equal((await go(input({ subagent_type: 'nofile' }), HAIKU)).f.calls, 0);
+  for (const ti of [{ subagent_type: 'odd' }, { subagent_type: 'worker' }]) { // unknown rule or at the floor: sensitive still wins, no shadow call
+    const { f, dir } = await go(input({ ...ti, prompt: 'Summary: Review the deploy script for errors.' }), HAIKU);
+    assert.equal(f.calls, 0); assert.equal(logOf(dir)[0].skip, 'sensitive');
+  }
+});
+test('rule unknown: Jev is called in shadow and logged, never applied', async () => {
+  for (const type of ['odd', 'nofile']) {
+    const { out, f, dir } = await go(input({ subagent_type: type }), HAIKU);
+    const rec = logOf(dir)[0];
+    assert.equal(out, null, type); assert.ok(f.calls >= 1, type);
+    assert.equal(rec.skip, 'rule_unknown', type); assert.equal(rec.jev_model, 'haiku', type); assert.equal(rec.applied_model, null, type);
+  }
 });
 test('sensitive: plurals and other word forms skip; "authored" does not', async () => {
   for (const s of ['Rotate the leaked secrets in the config.', 'Audit stored credentials.', 'Fix file permissions on the cache dir.', 'Run the database migrations.', 'Deleting old rows from the orders table.', 'Update the OAuth token flow.', 'Check the auth middleware.']) {
@@ -77,11 +87,20 @@ test('sensitive: plurals and other word forms skip; "authored" does not', async 
   const authored = await go(input({ prompt: 'Summary: Summarise the notes the author authored last week.' }), SONNET);
   assert.ok(authored.f.calls >= 1); assert.notEqual(logOf(authored.dir)[0].skip, 'sensitive'); // >= 1: jev-tier may add a shuffled side call
 });
-test('rule tier at the floor: no Jev call (worker haiku, analyst on explicit sonnet)', async () => {
-  for (const ti of [{ subagent_type: 'worker' }, { model: 'sonnet' }]) {
+test('rule tier at the floor: Jev in shadow, never applied (worker haiku, analyst on explicit sonnet)', async () => {
+  for (const [ti, jev] of [[{ subagent_type: 'worker' }, 'haiku'], [{ model: 'sonnet' }, 'sonnet']]) {
     const { out, f, dir } = await go(input(ti), HAIKU);
-    assert.equal(out, null); assert.equal(f.calls, 0); assert.equal(logOf(dir)[0].skip, 'at_floor');
+    const rec = logOf(dir)[0];
+    assert.equal(out, null); assert.ok(f.calls >= 1); assert.equal(rec.skip, 'at_floor'); assert.equal(rec.jev_model, jev); assert.equal(rec.applied_model, null);
   }
+});
+test('project agent is found from a project subfolder', async () => {
+  const s = setup();
+  const proj = join(s.dir, 'proj'); mkdirSync(join(proj, '.claude', 'agents'), { recursive: true });
+  const sub = join(proj, 'projects', 'shop'); mkdirSync(sub, { recursive: true });
+  writeFileSync(join(proj, '.claude', 'agents', 'source-reader.md'), '---\nname: source-reader\nmodel: opus\n---\nbody');
+  await onDispatch(input({ subagent_type: 'source-reader' }, { cwd: sub }), { fetchImpl: fetchOf(SONNET), ...s });
+  assert.equal(logOf(s.dir).at(-1).rule_model, 'opus');
 });
 test('project agent overrides the user agent; a model line outside the frontmatter is ignored', async () => {
   const s = setup();
@@ -89,7 +108,7 @@ test('project agent overrides the user agent; a model line outside the frontmatt
   writeFileSync(join(proj, '.claude', 'agents', 'analyst.md'), '---\nname: analyst\nmodel: sonnet\n---\nbody');
   const f = fetchOf(HAIKU);
   assert.equal(await onDispatch(input({}, { cwd: proj }), { fetchImpl: f, ...s }), null); // project sonnet = analyst floor: never raised to the user file's opus
-  assert.equal(f.calls, 0);
+  assert.equal(logOf(s.dir).at(-1).rule_model, 'sonnet');
   writeFileSync(join(proj, '.claude', 'agents', 'analyst.md'), '---\nname: analyst\n---\nmodel: haiku in the body');
   await onDispatch(input({}, { cwd: proj }), { fetchImpl: f, ...s });
   assert.equal(logOf(s.dir).at(-1).skip, 'rule_unknown');
@@ -104,6 +123,13 @@ test('Jev failure: no output', async () => {
   const f = async () => new Response('x', { status: 500 });
   assert.equal(await onDispatch(input({}), { fetchImpl: f, ...s }), null);
   assert.match(logOf(s.dir)[0].skip, /^jev: /);
+});
+test('shadow Jev failure: the shadow reason stays, no jev_model, no output', async () => {
+  const s = setup();
+  const f = async () => new Response('x', { status: 500 });
+  assert.equal(await onDispatch(input({ subagent_type: 'worker' }), { fetchImpl: f, ...s }), null);
+  const rec = logOf(s.dir)[0];
+  assert.equal(rec.skip, 'at_floor'); assert.equal(rec.jev_model, null); assert.equal(rec.applied_model, null);
 });
 test('mode log computes and logs but never outputs; off does nothing', async () => {
   const a = await go(input({}), SONNET, { router: { mode: 'log' } });
