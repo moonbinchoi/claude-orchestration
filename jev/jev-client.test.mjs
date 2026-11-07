@@ -13,6 +13,21 @@ const NOUL = { same: { type: 'noul', instructions: 'x' } };
 const SCORE = { rel: { type: 'score', instructions: 'x', criteria: ['a', 'b', 'c'] } };
 const scoreAns = (o = {}) => ({ rel: { type: 'score', score: 1.27, confidence: 0.58, probabilities: { 0: 0.01, 1: 0.72, 2: 0.27 }, ...o } });
 
+const callOpt = (questions, answers, optional) => systemOne({ body: { model: 'm', state: 'Rename one variable.', questions }, fetchImpl: fetchOf({ model: 'm', answers }), optional });
+const BOTH = { m: { type: 'choice', instructions: 'x', criteria: { a: 'a', b: 'b' } }, ...SCORE };
+const goodM = { m: { choice: 'a', confidence: 0.4, probabilities: { a: 0.7, b: 0.3 } } };
+test('optional: a bad optional answer is dropped, the rest kept', async () => {
+  for (const bad of [{}, scoreAns({ score: 2.5 }), scoreAns({ probabilities: { a: 1 } })]) {
+    const r = await callOpt(BOTH, { ...goodM, ...bad }, ['rel']);
+    assert.equal(r.answers.m.choice, 'a'); assert.ok(!('rel' in r.answers));
+  }
+});
+test('optional: a good optional answer is kept; required answers still throw', async () => {
+  const r = await callOpt(BOTH, { ...goodM, ...scoreAns() }, ['rel']);
+  assert.equal(r.answers.rel.score, 1.27);
+  await rejects(callOpt(BOTH, { ...scoreAns() }, ['rel']), 'missing answer m');
+  await rejects(call(BOTH, { ...goodM }), 'missing answer rel'); // no optional: unchanged
+});
 test('noul: p in 0..1 accepted (shape seen on jev-1.14.0)', async () => {
   const r = await call(NOUL, { same: { type: 'noul', noul: 0.63 } });
   assert.equal(r.answers.same.noul, 0.63);

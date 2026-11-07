@@ -44,42 +44,49 @@ async function readCapped(res) {
 
 const bad = (m) => new JevError('invalid-response', 'invalid_response', `Invalid response: ${m}`);
 
-function validate(json, questions) {
+// optional: names of questions whose bad answer is dropped instead of failing the whole response
+function validate(json, questions, optional = []) {
   if (!json || typeof json !== 'object' || (json.model !== undefined && typeof json.model !== 'string')) throw bad('shape');
   if (!json.answers || typeof json.answers !== 'object') throw bad('answers');
   for (const [q, def] of Object.entries(questions)) {
-    const a = json.answers[q];
-    if (!a || typeof a !== 'object') throw bad(`missing answer ${q}`);
-    const type = def.type ?? 'choice';
-    // noul answers carry only p in 0..1: {type: 'noul', noul: 0.63}
-    if (type === 'noul') {
-      if (typeof a.noul !== 'number' || !Number.isFinite(a.noul) || a.noul < 0 || a.noul > 1) throw bad(`noul ${q}`);
-      continue;
+    try { check(json.answers[q], q, def); } catch (e) {
+      if (!optional.includes(q)) throw e;
+      delete json.answers[q];
     }
-    // score criteria are a list; probabilities are keyed by level index "0".."n-1"
-    const expected = type === 'score' ? def.criteria.map((_, i) => String(i)) : Object.keys(def.criteria);
-    const p = a.probabilities;
-    if (!p || typeof p !== 'object' || Array.isArray(p)) throw bad(`probabilities ${q}`);
-    const keys = Object.keys(p);
-    if (keys.length !== expected.length || !expected.every((k) => keys.includes(k))) throw bad(`keys ${q}`);
-    let sum = 0;
-    let max = -1;
-    for (const k of keys) {
-      const v = p[k];
-      if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 1) throw bad(`value ${q}`);
-      sum += v;
-      max = Math.max(max, v);
-    }
-    if (Math.abs(sum - 1) > 1e-4) throw bad(`sum ${q}`);
-    if (type === 'score') {
-      if (typeof a.score !== 'number' || !Number.isFinite(a.score) || a.score < 0 || a.score > expected.length - 1) throw bad(`score ${q}`);
-    } else if (typeof a.choice !== 'string' || !(a.choice in p) || p[a.choice] !== max) throw bad(`choice ${q}`);
-    if (typeof a.confidence !== 'number' || !Number.isFinite(a.confidence) || a.confidence < 0 || a.confidence > 1) throw bad(`confidence ${q}`);
   }
   return json;
 }
 
-export async function systemOne({ body, fetchImpl = fetch, signal, timeoutMs = 1500 }) {
+function check(a, q, def) {
+  if (!a || typeof a !== 'object') throw bad(`missing answer ${q}`);
+  const type = def.type ?? 'choice';
+  // noul answers carry only p in 0..1: {type: 'noul', noul: 0.63}
+  if (type === 'noul') {
+    if (typeof a.noul !== 'number' || !Number.isFinite(a.noul) || a.noul < 0 || a.noul > 1) throw bad(`noul ${q}`);
+    return;
+  }
+  // score criteria are a list; probabilities are keyed by level index "0".."n-1"
+  const expected = type === 'score' ? def.criteria.map((_, i) => String(i)) : Object.keys(def.criteria);
+  const p = a.probabilities;
+  if (!p || typeof p !== 'object' || Array.isArray(p)) throw bad(`probabilities ${q}`);
+  const keys = Object.keys(p);
+  if (keys.length !== expected.length || !expected.every((k) => keys.includes(k))) throw bad(`keys ${q}`);
+  let sum = 0;
+  let max = -1;
+  for (const k of keys) {
+    const v = p[k];
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 1) throw bad(`value ${q}`);
+    sum += v;
+    max = Math.max(max, v);
+  }
+  if (Math.abs(sum - 1) > 1e-4) throw bad(`sum ${q}`);
+  if (type === 'score') {
+    if (typeof a.score !== 'number' || !Number.isFinite(a.score) || a.score < 0 || a.score > expected.length - 1) throw bad(`score ${q}`);
+  } else if (typeof a.choice !== 'string' || !(a.choice in p) || p[a.choice] !== max) throw bad(`choice ${q}`);
+  if (typeof a.confidence !== 'number' || !Number.isFinite(a.confidence) || a.confidence < 0 || a.confidence > 1) throw bad(`confidence ${q}`);
+}
+
+export async function systemOne({ body, fetchImpl = fetch, signal, timeoutMs = 1500, optional = [] }) {
   const key = process.env.TYPESAFE_API_KEY;
   if (!key) throw new JevError('credentials', 'credentials', 'TYPESAFE_API_KEY is not set.');
   // object state (named fields) is checked as its JSON text, which keeps non-ASCII letters as-is
@@ -119,5 +126,5 @@ export async function systemOne({ body, fetchImpl = fetch, signal, timeoutMs = 1
   } catch {
     throw bad('not JSON');
   }
-  return validate(json, body.questions);
+  return validate(json, body.questions, optional);
 }
