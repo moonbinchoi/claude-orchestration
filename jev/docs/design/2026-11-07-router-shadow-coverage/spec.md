@@ -1,5 +1,5 @@
 # Spec: Router shadow coverage
-From: intent.md · Status: approved
+From: intent.md · Status: implemented
 
 용어:
 - 규칙 모델: 위임 입력에 `model`이 있으면 그 값이고, 없으면 에이전트 정의 frontmatter의 `model`이다(기존 규칙).

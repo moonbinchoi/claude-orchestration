@@ -1,5 +1,5 @@
 # Intent: Router shadow coverage
-Status: approved · Date: 2026-11-07
+Status: implemented · Date: 2026-11-07
 
 ## Problem
 Jev 라우터는 위임마다 Jev 등급을 받아 규칙 모델보다 낮으면 모델을 내립니다. 그런데 일부 위임에서는 Jev를 아예 부르지 않아, 나중에 손 라벨과 비교할 섀도 자료가 남지 않습니다. 2026-11 토큰 감사에서는 위임 25건 중 11건이 이렇게 빠졌습니다. 3건은 규칙 모델을 모르는 경우(`rule_unknown`)였습니다. 메인 세션의 작업 폴더가 프로젝트 하위 폴더여서 프로젝트 에이전트 정의를 찾지 못했기 때문입니다(0bed8a84 세션의 07:02 위임, cwd `projects\shop`). 나머지 8건은 이미 가장 낮은 등급이라 내릴 것이 없는 경우(`at_floor`)였습니다.

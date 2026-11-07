@@ -1,5 +1,5 @@
 # Stale-resume block Implementation Plan
-Status: approved
+Status: implemented
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -65,6 +65,7 @@ Covers: R1, R2, R3, R4, R5, R6, R7, R9
   - 메시지는 공백(분), `K` 토큰, 금액, 새 세션 제안, 재전송 안내를 담는다.
   - `shortcut:` 주석을 두 개 단다. 하나는 2 MB tail 한계, 다른 하나는 마커를 지우지 않는다는 것이다.
 - [ ] **Step 4: 실행해서 통과 확인.** `node jev/stale-resume.test.mjs`를 실행하면 모두 PASS여야 한다.
+- [x] **최종 리뷰 수정(2026-11-07).** 차단 뒤 다시 보낸 프롬프트는 막지 않고 `additionalContext`로 모델에게 공백(분)·컨텍스트(K)·Long work 규칙 적용을 알린다. 모델은 쉰 시간을 볼 수 없어 R10 규칙 줄만으로는 동작하지 않기 때문이다. 테스트 `the resend after a block passes and tells the model the gap and context`.
 
 ### Task 2: 훅 진입점 연결
 Covers: R8, R9

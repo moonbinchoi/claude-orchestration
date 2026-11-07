@@ -27,7 +27,14 @@ test('gap over 1 h and context over 100K: blocks once with the cost, the resend 
   assert.equal(out.decision, 'block');
   assert.ok(out.reason.includes('195K') && out.reason.includes('$1.56') && out.reason.includes('61분'), out.reason);
   assert.ok(out.reason.includes('새 세션') && out.reason.includes('다시 보내'), out.reason);
-  assert.equal(onPrompt(input, { dir, env, now: at(HOUR + 120000) }), null);
+  assert.equal(onPrompt(input, { dir, env, now: at(HOUR + 120000) }).decision, undefined);
+});
+test('the resend after a block passes and tells the model the gap and context', () => {
+  const { dir, input } = setup([rec()]);
+  onPrompt(input, { dir, env, now: at(HOUR + 60000) });
+  const h = onPrompt(input, { dir, env, now: at(HOUR + 120000) }).hookSpecificOutput;
+  assert.equal(h.hookEventName, 'UserPromptSubmit');
+  assert.ok(h.additionalContext.includes('62 min') && h.additionalContext.includes('195K') && h.additionalContext.includes('status file'), h.additionalContext);
 });
 test('unparsable timestamp or a session id with path characters: no block', () => {
   const bad = setup([rec({ timestamp: 'x' })]);

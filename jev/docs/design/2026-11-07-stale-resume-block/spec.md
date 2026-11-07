@@ -1,5 +1,5 @@
 # Spec: Stale-resume block
-From: intent.md · Status: approved
+From: intent.md · Status: implemented
 
 ## Requirements
 - R1 (← G1). WHEN 사람이 보는 대화형 세션에서 프롬프트를 보내고, 직전 메인 assistant 기록으로부터 60분 넘게 지났고, 그 기록의 컨텍스트 토큰(input + cache read + cache write)이 100,000을 넘으면 THE SYSTEM SHALL 그 프롬프트를 모델로 보내지 않고 막는다.
