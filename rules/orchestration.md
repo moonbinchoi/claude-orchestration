@@ -26,7 +26,7 @@ Keep the work in the main conversation when it needs fewer than 3 tool turns, wh
 
 A PreToolUse hook lowers each dispatch's `model` to the lower of the rule model (the `model` you pass, else the agent's frontmatter model) and Jev's tier for the brief's `Summary:` line. Dispatch with the model the Model section chooses; never call jev-tier yourself.
 - The `Summary:` line is the only text sent to Jev: English, 1-2 sentences, no secrets, paths, code, or raw user prompt.
-- Add a line `Model-lock: <reason>` to the brief when the model must not be lowered: the user chose it, a project rule fixes this agent's model, or On BLOCKED raised it.
+- Add a line `Model-lock: <model>` (haiku, sonnet, opus, or fable) when the model must not be lowered: the user chose it, a project rule fixes this agent's model, or On BLOCKED raised it. The hook dispatches that model; a lock line without one is denied.
 
 ## Model
 

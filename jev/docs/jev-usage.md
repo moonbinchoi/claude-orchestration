@@ -84,7 +84,7 @@ Box is image-only and "Dreamer-ready" (not production; format may change). It ne
 
 | File | Question | Status |
 |---|---|---|
-| `jev-tier.mjs` + `router-guard.mjs` | tier (Choice 3) on the brief's `Summary:` line; no effort question; confidence-floor step-up only | live: PreToolUse hook lowers `model` to min(rule, Jev); skips `Model-lock:`, fable, fork, unknown rule tier, sensitive summaries, rule at floor; log `router.jsonl` |
+| `jev-tier.mjs` + `router-guard.mjs` | tier (Choice 3) on the brief's `Summary:` line, confidence-floor step-up only; effort (Score 5) in the same request, shadow only (logged, never applied; 2-week window from the merge, see design 2026-11-08-jev-model-lock-effort) | live: PreToolUse hook lowers `model` to min(rule, Jev); applies the `Model-lock:` model and denies a lock without one, skips fable, fork, unknown rule tier, sensitive summaries, rule at floor; log `router.jsonl` |
 | `main-pick.mjs` | main-session tier + effort on the first prompt summary | live, advisory; main proceeds in the same turn when the pick equals its model |
 | `stop-guard.mjs` | Noul "announced an action and stopped" (English weak cases only), p >= 0.85 | log only; skipped while a subagent runs |
 | `dispatch-guard.mjs` | Score 3 levels on `{task_a, task_b}`, duplicate at p("same") >= 0.85 | log only; `Repeat:` line marks intentional repeats |
