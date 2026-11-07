@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { run, FLOOR } from './jev-tier.mjs';
+import { run, FLOOR, EFFORTS } from './jev-tier.mjs';
 import { append } from './registry.mjs';
 import { readJson } from './guard-common.mjs';
 
@@ -16,11 +16,13 @@ const LOCK = /^Model-lock:[ \t]*(haiku|sonnet|opus|fable)(?=\s|$)/i;
 const LOCK_DENY = 'Model-lock must name a model: "Model-lock: <haiku|sonnet|opus|fable>". Add the model and dispatch again.';
 const SENSITIVE =/\b(secur\w*|secret\w*|credential\w*|auth|oauth\w*|authenticat\w*|authoriz\w*|permission\w*|deploy\w*|migrat\w*|delet\w*|drop\w*|wip(e|es|ed|ing)|purg\w*|token\w*|password\w*|data loss|production|prod)\b/i;
 
-// model: from the frontmatter block only; undefined = no such file, null = file without a model line
+// model and effort: from the frontmatter block only; undefined = no such file, null field = file without that line
 const agentModel = (agentsDir, name) => {
   let text;
   try { text = readFileSync(join(agentsDir, `${name}.md`), 'utf8'); } catch { return undefined; }
-  return text.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1].match(/^model:\s*(\S+)/m)?.[1]?.toLowerCase() ?? null;
+  const fm = text.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? '';
+  const field = (k) => fm.match(new RegExp(`^${k}:\\s*(\\S+)`, 'm'))?.[1]?.toLowerCase() ?? null;
+  return { model: field('model'), effort: field('effort') };
 };
 // a project agent overrides the user agent of the same name; walk up from cwd, which can be a project subfolder
 const projectModel = (dir, name) => {
@@ -30,7 +32,7 @@ const projectModel = (dir, name) => {
 };
 const ruleTierOf = (name, cwd, agentsDir) => {
   const project = typeof cwd === 'string' ? projectModel(resolve(cwd), name) : undefined;
-  return project !== undefined ? project : agentModel(agentsDir, name) ?? null;
+  return (project !== undefined ? project : agentModel(agentsDir, name)) ?? { model: null, effort: null };
 };
 
 export async function onDispatch(input, { fetchImpl = fetch, dir, now = Date.now, agentsDir = join(homedir(), '.claude', 'agents') } = {}) {
@@ -40,12 +42,13 @@ export async function onDispatch(input, { fetchImpl = fetch, dir, now = Date.now
   if (mode === 'off') return null;
   const start = now();
   const type = ti.subagent_type ?? null;
-  const rec = { ts: new Date(start).toISOString(), session_id: input.session_id ?? null, tool_use_id: input.tool_use_id ?? null, cwd: input.cwd ?? null, subagent_type: type, rule_model: null, jev_model: null, applied_model: null, lock_model: null, skip: null, latency_ms: null };
+  const rec = { ts: new Date(start).toISOString(), session_id: input.session_id ?? null, tool_use_id: input.tool_use_id ?? null, cwd: input.cwd ?? null, subagent_type: type, rule_model: null, jev_model: null, applied_model: null, lock_model: null, rule_effort: null, jev_effort: null, effort_would_apply: null, skip: null, latency_ms: null };
   const finish = (output = null) => { rec.latency_ms = now() - start; append(dir, 'router.jsonl', rec); return output; };
   const decide = (permissionDecision, extra) => (mode === 'log' ? null : { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision, ...extra } });
 
   const m = typeof ti.model === 'string' ? ti.model.toLowerCase() : null;
-  const rule = m ?? (type ? ruleTierOf(type, input.cwd, agentsDir) : null);
+  const agent = type ? ruleTierOf(type, input.cwd, agentsDir) : { model: null, effort: null };
+  const rule = m ?? agent.model;
   rec.rule_model = rule;
   // a fork ignores the model it is given, so a lock on it means nothing
   if (type === 'fork') { rec.skip = 'fork'; return finish(); }
@@ -70,6 +73,13 @@ export async function onDispatch(input, { fetchImpl = fetch, dir, now = Date.now
 
   const [r] = await run({ tasks: [{ id: input.tool_use_id ?? null, summary, agent_type: type, rule_model: rule }] }, { fetchImpl, dir, now, deadlineMs: DEADLINE_MS });
   rec.jev_model = r?.model ?? null;
+  // effort shadow: logged only, never applied; no effort without a model verdict or with an unknown rule tier
+  if (rec.jev_model && shadow !== 'rule_unknown') {
+    rec.rule_effort = (typeof ti.effort === 'string' ? ti.effort : agent.effort)?.toLowerCase() ?? null;
+    rec.jev_effort = r.effort ?? null;
+    const [ri, ji] = [EFFORTS.indexOf(rec.rule_effort), EFFORTS.indexOf(rec.jev_effort)];
+    if (ri >= 0 && ji >= 0 && ji < ri) rec.effort_would_apply = rec.jev_effort;
+  }
   if (shadow) rec.skip = shadow;
   else if (!rec.jev_model) rec.skip = `jev: ${r?.fallback_reason ?? 'error'}`;
   else if (TIERS.indexOf(rec.jev_model) >= TIERS.indexOf(rule)) rec.skip = 'not_lower';

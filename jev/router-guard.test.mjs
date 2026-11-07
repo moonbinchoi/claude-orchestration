@@ -8,18 +8,20 @@ import { evaluate } from './agent-hooks.mjs';
 process.env.TYPESAFE_API_KEY = 'test-key-not-real';
 
 const conf = (p) => { const v = Object.values(p); const n = v.length; return (Math.max(...v) - 1 / n) / (1 - 1 / n); };
-const reply = (p) => {
+// s: effort Score expected value (1 -> medium); null leaves the effort answer out
+const reply = (p, s = 1) => {
   const choice = Object.entries(p).sort((a, b) => b[1] - a[1])[0][0];
-  return new Response(JSON.stringify({ model: 'jev-test', answers: { model: { choice, probabilities: p, confidence: conf(p) } }, usage: { input_tokens: 1, output_tokens: 1 } }));
+  const effort = s === null ? {} : { effort: { type: 'score', score: s, confidence: 0.5, legend: [], probabilities: { 0: 0.1, 1: 0.2, 2: 0.4, 3: 0.2, 4: 0.1 } } };
+  return new Response(JSON.stringify({ model: 'jev-test', answers: { model: { choice, probabilities: p, confidence: conf(p) }, ...effort }, usage: { input_tokens: 1, output_tokens: 1 } }));
 };
 const HAIKU = { haiku: 0.9, sonnet: 0.05, opus: 0.05 };
 const SONNET = { haiku: 0.05, sonnet: 0.9, opus: 0.05 };
 const OPUS = { haiku: 0.05, sonnet: 0.05, opus: 0.9 };
-const fetchOf = (p) => { const f = async () => { f.calls++; return reply(p); }; f.calls = 0; return f; };
+const fetchOf = (p, s) => { const f = async () => { f.calls++; return reply(p, s); }; f.calls = 0; return f; };
 const setup = (config) => {
   const dir = mkdtempSync(join(tmpdir(), 'router-test-'));
   const agentsDir = join(dir, 'agents'); mkdirSync(agentsDir);
-  writeFileSync(join(agentsDir, 'analyst.md'), '---\nname: analyst\nmodel: opus\n---\nbody');
+  writeFileSync(join(agentsDir, 'analyst.md'), '---\nname: analyst\nmodel: opus\neffort: high\n---\nbody');
   writeFileSync(join(agentsDir, 'worker.md'), '---\nname: worker\nmodel: haiku\n---\nbody');
   writeFileSync(join(agentsDir, 'odd.md'), '---\nname: odd\nmodel: inherit\n---\nbody');
   if (config) writeFileSync(join(dir, 'config.json'), JSON.stringify(config));
@@ -212,6 +214,32 @@ test('agent-hooks: a lock deny is not registered', async () => {
   const { output } = await evaluate(input({ prompt: lockP('Model-lock: why') }), { fetchImpl: fetchOf(SONNET), dir: s.dir, loader });
   assert.equal(JSON.parse(output).hookSpecificOutput.permissionDecision, 'deny');
   assert.ok(!existsSync(join(s.dir, 'registry.jsonl')) || !readFileSync(join(s.dir, 'registry.jsonl'), 'utf8').includes('"dispatch"'));
+});
+
+test('effort: lower Jev effort is would_apply only, effort never changed in output', async () => {
+  const { out, dir } = await go(input({ effort: 'high' }), SONNET); // score 1 -> medium
+  assert.equal(out.hookSpecificOutput.updatedInput.effort, 'high');
+  const r = logOf(dir)[0]; assert.equal(r.rule_effort, 'high'); assert.equal(r.jev_effort, 'medium'); assert.equal(r.effort_would_apply, 'medium');
+  const noEff = await go(input({}), SONNET); assert.ok(!('effort' in noEff.out.hookSpecificOutput.updatedInput));
+});
+test('effort: rule effort from frontmatter; passed effort wins; missing -> null', async () => {
+  assert.equal(logOf((await go(input({}), SONNET)).dir)[0].rule_effort, 'high');
+  assert.equal(logOf((await go(input({ effort: 'LOW' }), SONNET)).dir)[0].rule_effort, 'low');
+  const w = logOf((await go(input({ model: 'sonnet', subagent_type: 'worker' }), HAIKU)).dir)[0];
+  assert.equal(w.rule_effort, null); assert.equal(w.effort_would_apply, null); assert.equal(w.jev_effort, 'medium');
+});
+test('effort: equal or higher Jev effort, or an odd rule effort, gives no would_apply', async () => {
+  for (const e of ['low', 'medium', 'weird']) assert.equal(logOf((await go(input({ effort: e }), SONNET)).dir)[0].effort_would_apply, null, e);
+});
+test('effort: null on rule_unknown, lock, skips and Jev failure', async () => {
+  const cases = [input({ subagent_type: 'odd' }), input({ prompt: lockP('Model-lock: sonnet') }), input({ prompt: 'Goal: x' })];
+  for (const c of cases) { const r = logOf((await go(c, SONNET)).dir)[0]; assert.equal(r.rule_effort, null); assert.equal(r.jev_effort, null); assert.equal(r.effort_would_apply, null); }
+  const s = setup(); await onDispatch(input({}), { fetchImpl: async () => new Response('x', { status: 500 }), ...s });
+  assert.equal(logOf(s.dir)[0].jev_effort, null);
+});
+test('bad effort answer keeps model routing', async () => {
+  const s = setup(); const out = await onDispatch(input({}), { fetchImpl: fetchOf(SONNET, 9), ...s });
+  assert.equal(out.hookSpecificOutput.updatedInput.model, 'sonnet'); assert.equal(logOf(s.dir)[0].jev_effort, null);
 });
 
 for (const [name, fn] of cases) {
