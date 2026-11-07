@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { onDispatch } from './router-guard.mjs';
@@ -57,7 +57,6 @@ test('analyst floor: Jev haiku is raised to sonnet before comparison', async () 
 test('skips make no Jev call and log the reason', async () => {
   const skips = {
     no_summary: input({ prompt: 'Goal: do it' }),
-    model_lock: input({ prompt: 'Summary: Rename a variable.\nModel-lock: user asked for opus' }),
     fable: input({ model: 'fable' }),
     fork: input({ subagent_type: 'fork' }),
     sensitive: input({ prompt: 'Summary: Review the deploy script for errors.' }),
@@ -164,6 +163,55 @@ test('agent-hooks: broken router module is ignored', async () => {
   const loader = async (file) => { if (file === 'router-guard.mjs') throw new Error('x'); return import(`./${file}`); };
   const { output } = await evaluate(input({}), { fetchImpl: fetchOf(SONNET), dir: s.dir, loader });
   assert.equal(output, null);
+});
+
+const DENY = 'Model-lock must name a model: "Model-lock: <haiku|sonnet|opus|fable>". Add the model and dispatch again.';
+const lockP = (line, nl = '\n') => `Summary: Rename a variable.${nl}${line}${nl}Goal: x`;
+test('lock without a model is denied, no Jev call', async () => {
+  for (const line of ['Model-lock: user asked for opus', 'Model-lock:', 'Model-lock: opus.', 'Model-lock: opus-4']) {
+    const { out, f, dir } = await go(input({ prompt: lockP(line) }), HAIKU);
+    assert.equal(out?.hookSpecificOutput.permissionDecision, 'deny', line); assert.equal(out.hookSpecificOutput.permissionDecisionReason, DENY);
+    assert.equal(f.calls, 0); assert.equal(logOf(dir)[0].skip, 'model_lock_invalid');
+  }
+});
+test('lock with a model dispatches that model, even over an explicit model and without Summary', async () => {
+  for (const ti of [{ prompt: lockP('Model-lock: sonnet') }, { model: 'opus', prompt: lockP('Model-lock: haiku — user chose') }, { prompt: 'Goal: x\nModel-lock: sonnet' }]) {
+    const { out, f, dir } = await go(input(ti), HAIKU);
+    const want = /haiku/.test(ti.prompt) ? 'haiku' : 'sonnet';
+    assert.deepEqual(out?.hookSpecificOutput.updatedInput, { ...input(ti).tool_input, model: want });
+    assert.equal(f.calls, 0); const r = logOf(dir)[0]; assert.equal(r.skip, 'model_lock'); assert.equal(r.lock_model, want); assert.equal(r.applied_model, want);
+  }
+});
+test('lock model is case-insensitive and lowercased; Model-lock:opus without space is valid', async () => {
+  assert.equal((await go(input({ prompt: lockP('Model-lock: Opus') }), HAIKU)).out?.hookSpecificOutput.updatedInput.model, 'opus');
+  assert.equal((await go(input({ prompt: lockP('Model-lock:opus') }), HAIKU)).out?.hookSpecificOutput.updatedInput.model, 'opus');
+});
+test('CRLF lock line is valid; lock line after the summary block is still found', async () => {
+  assert.equal((await go(input({ prompt: lockP('Model-lock: sonnet', '\r\n') }), HAIKU)).out?.hookSpecificOutput.updatedInput.model, 'sonnet');
+  assert.equal((await go(input({ prompt: 'Summary: s\nGoal: g\nContext: c\nScope: x\nModel-lock: sonnet' }), HAIKU)).out?.hookSpecificOutput.updatedInput.model, 'sonnet');
+});
+test('only the first lock line counts', async () => {
+  assert.equal((await go(input({ prompt: lockP('Model-lock: why\nModel-lock: sonnet') }), HAIKU)).out?.hookSpecificOutput.permissionDecision, 'deny');
+});
+test('lock in log mode: logged, no output; off and fork: lock ignored', async () => {
+  const a = await go(input({ prompt: lockP('Model-lock: why') }), HAIKU, { router: { mode: 'log' } });
+  assert.equal(a.out, null); assert.equal(logOf(a.dir)[0].skip, 'model_lock_invalid');
+  const b = await go(input({ prompt: lockP('Model-lock: sonnet') }), HAIKU, { router: { mode: 'log' } });
+  assert.equal(b.out, null); assert.equal(logOf(b.dir)[0].lock_model, 'sonnet'); assert.equal(logOf(b.dir)[0].applied_model, null);
+  assert.equal((await go(input({ prompt: lockP('Model-lock: why') }), HAIKU, { router: { mode: 'off' } })).out, null);
+  const c = await go(input({ subagent_type: 'fork', prompt: lockP('Model-lock: why') }), HAIKU);
+  assert.equal(c.out, null); assert.equal(logOf(c.dir)[0].skip, 'fork');
+});
+test('every record carries cwd', async () => {
+  const a = await go(input({}, { cwd: '/e/Study/Inflearn' }), SONNET); assert.equal(logOf(a.dir)[0].cwd, '/e/Study/Inflearn');
+  const b = await go(input({ subagent_type: 'fork' }), SONNET); assert.equal(logOf(b.dir)[0].cwd, null);
+});
+test('agent-hooks: a lock deny is not registered', async () => {
+  const s = setup();
+  const loader = async (file) => (file === 'router-guard.mjs' ? { onDispatch: (i, o) => onDispatch(i, { ...o, agentsDir: s.agentsDir }) } : import(`./${file}`));
+  const { output } = await evaluate(input({ prompt: lockP('Model-lock: why') }), { fetchImpl: fetchOf(SONNET), dir: s.dir, loader });
+  assert.equal(JSON.parse(output).hookSpecificOutput.permissionDecision, 'deny');
+  assert.ok(!existsSync(join(s.dir, 'registry.jsonl')) || !readFileSync(join(s.dir, 'registry.jsonl'), 'utf8').includes('"dispatch"'));
 });
 
 for (const [name, fn] of cases) {

@@ -11,7 +11,10 @@ const TIERS = ['haiku', 'sonnet', 'opus'];
 // shares the 3.8 s hook budget with dispatch-guard's Jev call (2 s)
 const DEADLINE_MS = 1000;
 // word stems so plurals and other forms match ("secrets", "migrations", "deleting"); "auth" alone or auth(entic|oriz)*, not "authored"
-const SENSITIVE = /\b(secur\w*|secret\w*|credential\w*|auth|oauth\w*|authenticat\w*|authoriz\w*|permission\w*|deploy\w*|migrat\w*|delet\w*|drop\w*|wip(e|es|ed|ing)|purg\w*|token\w*|password\w*|data loss|production|prod)\b/i;
+// the lock names the model to dispatch; anything else after "Model-lock:" is denied
+const LOCK = /^Model-lock:[ \t]*(haiku|sonnet|opus|fable)(?=\s|$)/i;
+const LOCK_DENY = 'Model-lock must name a model: "Model-lock: <haiku|sonnet|opus|fable>". Add the model and dispatch again.';
+const SENSITIVE =/\b(secur\w*|secret\w*|credential\w*|auth|oauth\w*|authenticat\w*|authoriz\w*|permission\w*|deploy\w*|migrat\w*|delet\w*|drop\w*|wip(e|es|ed|ing)|purg\w*|token\w*|password\w*|data loss|production|prod)\b/i;
 
 // model: from the frontmatter block only; undefined = no such file, null = file without a model line
 const agentModel = (agentsDir, name) => {
@@ -37,17 +40,27 @@ export async function onDispatch(input, { fetchImpl = fetch, dir, now = Date.now
   if (mode === 'off') return null;
   const start = now();
   const type = ti.subagent_type ?? null;
-  const rec = { ts: new Date(start).toISOString(), session_id: input.session_id ?? null, tool_use_id: input.tool_use_id ?? null, subagent_type: type, rule_model: null, jev_model: null, applied_model: null, skip: null, latency_ms: null };
+  const rec = { ts: new Date(start).toISOString(), session_id: input.session_id ?? null, tool_use_id: input.tool_use_id ?? null, cwd: input.cwd ?? null, subagent_type: type, rule_model: null, jev_model: null, applied_model: null, lock_model: null, skip: null, latency_ms: null };
   const finish = (output = null) => { rec.latency_ms = now() - start; append(dir, 'router.jsonl', rec); return output; };
+  const decide = (permissionDecision, extra) => (mode === 'log' ? null : { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision, ...extra } });
 
-  const summary = ti.prompt.split('\n').map((l) => l.trim()).filter(Boolean).slice(0, 3).map((l) => l.match(/^Summary:\s*(.+)$/i)?.[1]).find(Boolean);
   const m = typeof ti.model === 'string' ? ti.model.toLowerCase() : null;
   const rule = m ?? (type ? ruleTierOf(type, input.cwd, agentsDir) : null);
   rec.rule_model = rule;
-  if (!summary) { rec.skip = 'no_summary'; return finish(); }
-  if (/^Model-lock:\s*\S/im.test(ti.prompt)) { rec.skip = 'model_lock'; return finish(); }
-  if (m === 'fable') { rec.skip = 'fable'; return finish(); }
+  // a fork ignores the model it is given, so a lock on it means nothing
   if (type === 'fork') { rec.skip = 'fork'; return finish(); }
+  const lockLine = ti.prompt.split(/\r?\n/).find((l) => /^Model-lock:/i.test(l));
+  if (lockLine !== undefined) {
+    rec.lock_model = lockLine.match(LOCK)?.[1]?.toLowerCase() ?? null;
+    if (!rec.lock_model) { rec.skip = 'model_lock_invalid'; return finish(decide('deny', { permissionDecisionReason: LOCK_DENY })); }
+    rec.skip = 'model_lock';
+    if (mode === 'log') return finish();
+    rec.applied_model = rec.lock_model;
+    return finish(decide('allow', { updatedInput: { ...ti, model: rec.lock_model } }));
+  }
+  const summary = ti.prompt.split('\n').map((l) => l.trim()).filter(Boolean).slice(0, 3).map((l) => l.match(/^Summary:\s*(.+)$/i)?.[1]).find(Boolean);
+  if (!summary) { rec.skip = 'no_summary'; return finish(); }
+  if (m === 'fable') { rec.skip = 'fable'; return finish(); }
   // shadow: Jev is still called and logged so every dispatch has evaluation data, but its answer is never applied
   if (SENSITIVE.test(summary)) { rec.skip = 'sensitive'; return finish(); }
   let shadow = null;
