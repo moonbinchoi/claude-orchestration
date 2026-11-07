@@ -26,7 +26,7 @@ Keep the work in the main conversation when it needs fewer than 3 tool turns, wh
 
 A PreToolUse hook lowers each dispatch's `model` to the lower of the rule model (the `model` you pass, else the agent's frontmatter model) and Jev's tier for the brief's `Summary:` line. Dispatch with the model the Model section chooses; never call jev-tier yourself.
 - The `Summary:` line is the only text sent to Jev: English, 1-2 sentences, no secrets, paths, code, or raw user prompt.
-- Add a line `Model-lock: <reason>` to the brief when the model must not be lowered: the user chose it, or On BLOCKED raised it.
+- Add a line `Model-lock: <reason>` to the brief when the model must not be lowered: the user chose it, a project rule fixes this agent's model, or On BLOCKED raised it.
 
 ## Model
 
@@ -35,7 +35,6 @@ Before dispatching bulk work, decide each agent's model and expected input size.
 Pass `model` only in these cases:
 - `worker`, on every dispatch: `sonnet` when judgment remains inside the task (a prose-only brief, coordinated edits across files, writing for a reader, a transformation with ambiguous rules); `haiku` otherwise (command runs, exact edits, single-file mechanical changes, explicit-rule transformations, file operations).
 - `analyst`: `sonnet` when the input is bulk.
-- `reviewer`: `sonnet` for a small mechanical diff.
 - `fable`: only when the user asks for it.
 
 Run at most 2 Opus agents at once, counted by the model you dispatch with: `analyst` and `reviewer` without a `model` override, and forks of an Opus main. Several at once exhaust the usage limit.
@@ -72,3 +71,4 @@ Before acting on a claim a decision depends on, read the lines it cites yourself
 - Before exploring to interpret an ambiguous instruction, ask the user once.
 - Update status files at phase ends, not after every report.
 - At a phase end, write a status file and suggest continuing in a new session.
+- When a main session resumes after over an hour idle with a large context, write a status file if none exists and suggest a new session from it.

@@ -94,14 +94,14 @@ Covers: R10
 - Modify: `rules/orchestration.md`("Long work" 절)
 
 - [ ] **Step 1: 줄 추가.** "Long work" 끝에 다음을 넣는다. 사용자 `CLAUDE.md` 작성 규칙(직접 명령형, 자명하지 않을 때만 이유)을 따른다.
-  `- Do not resume a main session idle over an hour with a large context; start a new session from its status file. The hook blocks the first such prompt once.`
-- [ ] **Step 2: 확인.** `grep -n "idle over an hour" rules/orchestration.md`를 실행하면 1줄이 나와야 한다.
+  `- When a main session resumes after over an hour idle with a large context, write a status file if none exists and suggest a new session from it.`
+- [ ] **Step 2: 확인.** `grep -n "over an hour idle" rules/orchestration.md`를 실행하면 1줄이 나와야 한다.
 - [ ] **Step 3: 커밋.** `rules/orchestration.md`를 커밋한다. G3·G4 규칙 수정이 같은 파일에 있으므로 함께 커밋하고, 메시지에 G1·G3·G4를 적는다.
 
 ## Final verification
 
 ```
-cd C:/Users/skyra/.claude/jev && node stale-resume.test.mjs && node agent-hooks.test.mjs && node main-pick-trigger.test.mjs && grep -c "idle over an hour" ../rules/orchestration.md
+cd C:/Users/skyra/.claude/jev && node stale-resume.test.mjs && node agent-hooks.test.mjs && node main-pick-trigger.test.mjs && grep -c "over an hour idle" ../rules/orchestration.md
 ```
 Expected: 모든 줄이 `PASS`/`ok`이고 `N/N passed`가 두 번 나온 뒤 마지막에 `1`이 나온다.
 
