@@ -15,6 +15,7 @@
 /projects/e--Study-Inflearn/memory/*
 !/projects/e--Study-Inflearn/memory/global-orchestration-requirements.md
 !/settings.json
+!/hooks/
 !/jev/
 /jev/shadow.jsonl
 /jev/cache/
