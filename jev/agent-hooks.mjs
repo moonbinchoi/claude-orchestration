@@ -1,5 +1,5 @@
 // agent-hooks: hook entry for PreToolUse(Agent), PostToolUse(Agent), SubagentStop and UserPromptSubmit. Records events in the registry and
-// runs router-guard (model downgrade), dispatch-guard, retry-guard and report-guard; UserPromptSubmit runs main-pick-trigger (first-prompt model hint). Each guard loads in its own try/catch so one broken module never stops the other
+// runs router-guard (model downgrade), dispatch-guard, retry-guard and report-guard; UserPromptSubmit runs stale-resume (blocks a resume that would rewrite an expired cache), then main-pick-trigger (first-prompt model hint). Each guard loads in its own try/catch so one broken module never stops the other
 // or the recording. Fail-open, always exit 0.
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -69,6 +69,8 @@ export async function evaluate(input, { fetchImpl = fetch, dir = defaultDir(), n
   }
 
   if (ev === 'UserPromptSubmit') {
+    const stale = await attempt(async () => (await loader('stale-resume.mjs')).onPrompt(input, { dir, env, now }));
+    if (stale) return out(stale);
     return out(await attempt(async () => (await loader('main-pick-trigger.mjs')).onPrompt(input, { dir, env, now })));
   }
 
