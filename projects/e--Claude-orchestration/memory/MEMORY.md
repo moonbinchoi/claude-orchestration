@@ -8,4 +8,4 @@
 - [sdlc plugin](sdlc-plugin.md) — own repo E:\Claude\sdlc-plugin, local-marketplace install, edit only via writing-skills
 - [Orchestration remote repo](orchestration-remote-repo.md) — private GitHub claude-orchestration: branches (old/v1 = previous design, main, jev-*), what is tracked/excluded, merge plan ~2026-11-05; git push commands get denied, user runs them
 - [Jev usage reference](jev-usage-reference.md) — ~/.claude/jev/docs/jev-usage.md; read before any Jev call design or Jev skill
-- [Harness design docs location](harness-design-docs-location.md) — sdlc intent/spec/plan for ~/.claude changes go in E:\Claude\orchestration\docs\design (not git), never in ~/.claude
+- [Harness work-unit folders](harness-design-docs-location.md) — one folder per work unit: E:\Claude\orchestration\docs\design\YYYY-MM-DD-slug (design docs + handoff + artifacts), never in ~/.claude

@@ -1,15 +1,18 @@
 ---
 name: harness-design-docs-location
-description: "sdlc design docs (intent/spec/plan) for global harness changes live in E:\\Claude\\orchestration\\docs\\design, not in the ~/.claude repo"
+description: "In E:\\Claude\\orchestration every work unit (design docs, handoff, status, artifacts) lives in one folder docs/design/YYYY-MM-DD-<slug>; never in ~/.claude"
 metadata:
   node_type: memory
   type: feedback
   originSessionId: 26eb969e-7ebe-4fa2-bcef-2b50fb8cdb23
-  modified: 2026-11-07T08:55:31.135Z
+  modified: 2026-11-07T09:04:08.446Z
 ---
 
-Put intent.md, spec.md and plan.md for any change to the global harness (`~/.claude` rules, agents, jev hooks) under `E:\Claude\orchestration\docs\design\YYYY-MM-DD-<slug>\`. Do not commit them into `~/.claude`. The user approved the move on 2026-11-07, after the first two token-audit designs had been committed to `~/.claude/jev/docs/design/`.
+One work unit = one folder: `E:\Claude\orchestration\docs\design\YYYY-MM-DD-<slug>\`. Put everything for that unit in it: intent.md, spec.md, plan.md, the handoff, the status file, scripts, data and results. When one unit holds several sdlc designs, give each its own subfolder named `YYYY-MM-DD-<slug>` and pass that path to the sdlc skills. Do not commit any of this into `~/.claude`.
 
-**Why:** global harness sessions run in E:\Claude\orchestration, so the sdlc skills find `docs/design/<slug>` there for resume. It also keeps sdlc output out of the orchestration repo, which matches how the sdlc plugin is kept independent (see [[orchestration-remote-repo]], [[sdlc-plugin]]).
+**Why:** the user wants one folder per work unit. The sdlc skills create and look up designs under `docs/design/`, and `docs/design/2026-10-22-design-docs-concepts/design-docs-concepts.md` §184-187 chose `docs/design/YYYY-MM-DD-<slug>/` and rejected root-level feature folders. On 2026-11-07 every earlier unit was moved to match: knowledge-layer eval (2026-10-21), knowledge-layer removal archive (2026-10-22), the design-docs concepts (2026-10-22), and the token audit (2026-11-07).
 
-**How to apply:** E:\Claude\orchestration is not a git repo, so these docs have no version history or offsite backup unless the user decides to `git init` it. Code commits in ~/.claude should name the design folder path in their message.
+**How to apply:**
+- The orchestration folder is not a git repo yet (the user will decide later), so these files have no history or backup.
+- A unit folder without an sdlc intent.md, such as the removal archive or the concepts doc, will show up as unfinished when `/sdlc:write-design-docs` is asked to continue without a slug. Decline it there. Never resume the knowledge-layer eval ([[knowledge-layer-removed]]).
+- Code commits in ~/.claude name the design folder path. Related: [[orchestration-remote-repo]], [[sdlc-plugin]].
