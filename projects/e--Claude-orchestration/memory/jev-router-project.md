@@ -1,11 +1,11 @@
 ---
 name: jev-router-project
-description: "Jev model router for orchestration: session 2 (jev-tier shadow mode) built and committed 2026-10-19; next is shadow-log collection, then session 2b"
+description: "Jev model router for orchestration: router final since the 2026-11-08 re-measure (applied same day); effort shadow to 2026-11-22; history of sessions 2-4c"
 metadata:
   node_type: memory
   type: project
   originSessionId: 90b13c1f-288a-416d-aa29-484471434ed4
-  modified: 2026-11-08T07:57:28.742Z
+  modified: 2026-11-08T09:14:46.329Z
 ---
 
 Design and status: `E:\Claude\orchestration\docs\research\global-orchestration\scratch\jev-router-design.md` and `E:\Claude\orchestration\docs\research\global-orchestration\scratch\jev-router-status.md` (status has a "Session 2 result" section). Session prompts: `jev-prompts\*.txt` in the same folder.
@@ -30,4 +30,6 @@ Next: collect >=30 shadow records, then session 2b (review Jev-lower picks, tune
 
 2026-11-07 token-audit session (commits 266d711..a8c1a07 on jev-f1-main-pick, design docs `E:\Claude\orchestration\docs\design\2026-11-07-token-audit-global\2026-11-07-*`, moved out of ~/.claude the same day; see [[harness-design-docs-location]]): router now calls Jev in shadow on `rule_unknown` and `at_floor` (never applied; `sensitive` checked first so it never reaches Jev); project `.claude/agents` found by walking up from cwd (a subfolder cwd caused the audit's rule_unknown). New `stale-resume.mjs` on UserPromptSubmit blocks once per idle gap (>60 min, context >100K) and tells the model on the resend. Rules: reviewer `model` left to the router; "a project rule fixes this agent's model" added as a case for `Model-lock: <model>`. `jev-latest` resolves to jev-1.14.0 (doctor 2026-11-07); config pin was already 1.14.0. Re-measure: check `router.jsonl` rows with skip rule_unknown/at_floor now carry jev_model.
 
-2026-11-07: re-measure handoff written at `E:/Claude/orchestration/docs/design/2026-11-07-jev-shadow-remeasure/prompt.md` (not started).
+2026-11-08: re-measure phase 1 done; user decisions in `E:/Claude/orchestration/docs/design/2026-11-07-jev-shadow-remeasure/decision.md` (router promoted, stop-guard and report-guard dropped, retry-guard notice-only, dispatch-guard log-only, rule A kept, Summary unchanged). Non-obvious: the user prefers deciding from shadow records over new paired experiments; sentence-only stop detection fails even with Jev (translated check: 5 of 6 blocks false).
+
+2026-11-08 apply phase done (93c623a, 70ff948, 1d8af91; table in that folder's `status.md`): retry-guard `notice` live; stop-guard and report-guard (plus claim/report modules) deleted, logs kept; registry stop status fix. Non-obvious: (1) in the VS Code host the SubagentStop hook often runs before the SubagentHandback line is on disk (131 of 166 stops on 2.1.312+), so the hook now re-reads up to 1.5 s and logs `waited_ms` - check that field next time; (2) `api-request-blob` transcript lines replay old turns, so only `assistant` lines count as a handback; (3) the CLI host writes no SubagentHandback; (4) VS Code dispatches run in the background, so a PostToolUse(Agent) notice at the link does not fire there. Still open: briefs with their own report format drop the status line (56 stops), a rule change in `agents/*.md` pending the user's decision. Effort shadow continues to 2026-11-22.

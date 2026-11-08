@@ -1,7 +1,7 @@
 - [Parallelize bulk work](parallelize-bulk-work.md) — dispatch parallel subagents for many web searches / multi-source research
 - [Global orchestration design](global-orchestration-design.md) — rules + 6 agents installed and verified 2026-10-18; design record location, non-obvious facts; 2026-10-19 improvements A-L all applied (H on 2026-10-19 after step 5); ~/.claude is a git repo
 - [One file, one function](one-file-one-function.md) — user rule for code layout; check before extending a file
-- [Jev router project](jev-router-project.md) — 2026-10-22: router live via PreToolUse hook (min rule/Jev, Model-lock), guards log-only, improvements built; re-measure to ~2026-11-05 then re-evaluate rule structure A vs B
+- [Jev router project](jev-router-project.md) — 2026-11-08 re-measure applied (router final, stop/report guards deleted, retry notice live, stop-status race fix); effort shadow to 2026-11-22
 - [settings.json model is user-owned](settings-model-user-owned.md) — fluid user value; never flag or commit that line
 - [Report language Korean](report-language-korean.md) — prompt-file "Return in English" never overrides Korean reports to the user
 - [Knowledge layer removed](knowledge-layer-removed.md) — removed 2026-10-22; archive + archived GitHub repo locations; never reinstall or propose it
