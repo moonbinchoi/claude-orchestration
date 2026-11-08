@@ -31,7 +31,8 @@ const projectModel = (dir, name) => {
   return found !== undefined || up === dir ? found : projectModel(up, name);
 };
 const ruleTierOf = (name, cwd, agentsDir) => {
-  const project = typeof cwd === 'string' ? projectModel(resolve(cwd), name) : undefined;
+  // an empty cwd would resolve to the hook process cwd, so only a non-empty string is looked up
+  const project = typeof cwd === 'string' && cwd ? projectModel(resolve(cwd), name) : undefined;
   return (project !== undefined ? project : agentModel(agentsDir, name)) ?? { model: null, effort: null };
 };
 

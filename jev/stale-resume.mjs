@@ -12,13 +12,16 @@ const TAIL_BYTES = 2 * 1024 * 1024;
 // 1 h cache-write $/M tokens from the 2026-11 token audit price table; other models get no dollar estimate
 const WRITE_PRICE = { opus: 8, sonnet: 4 };
 
-// last main-conversation assistant record with usage; the first tail line may be cut, so unparsable lines are skipped
+const contextOf = (u) => (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0);
+
+// last main-conversation assistant record with nonzero usage (a synthetic API-error record has zero usage and wrote no cache);
+// the first tail line may be cut, so unparsable lines are skipped
 function lastAssistant(text) {
   const lines = text.split('\n');
   for (let i = lines.length - 1; i >= 0; i--) {
     let r;
     try { r = JSON.parse(lines[i]); } catch { continue; }
-    if (r?.type === 'assistant' && r.isSidechain !== true && r.message?.usage && r.timestamp) return r;
+    if (r?.type === 'assistant' && r.isSidechain !== true && r.message?.usage && r.timestamp && contextOf(r.message.usage) > 0) return r;
   }
   return null;
 }
@@ -31,9 +34,9 @@ export function onPrompt(input, { dir, env = process.env, now = Date.now, reader
     const last = lastAssistant(reader(input.transcript_path, TAIL_BYTES).text);
     if (!last) return null;
     const at = Date.parse(last.timestamp);
-    const u = last.message.usage;
-    const context = (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0);
-    const gapMin = Math.round((now() - at) / 60000);
+    const context = contextOf(last.message.usage);
+    // ceil: a gap just over 60 min must never read "60분"
+    const gapMin = Math.ceil((now() - at) / 60000);
     if (!(now() - at > GAP_MS) || context <= MIN_CONTEXT) return null;
 
     const k = Math.round(context / 1000);

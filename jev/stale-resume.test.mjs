@@ -66,6 +66,18 @@ test('unknown model: blocks without a dollar figure', () => {
   const out = onPrompt(input, { dir, env, now: at(2 * HOUR) });
   assert.equal(out.decision, 'block'); assert.ok(!out.reason.includes('$'));
 });
+test('a synthetic zero-usage assistant record (API error) after the real one is skipped: still blocks', () => {
+  const zero = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 };
+  const synthetic = rec({ timestamp: new Date(T0 + HOUR / 2).toISOString(), isApiErrorMessage: true, message: { model: '<synthetic>', usage: zero } });
+  const { dir, input } = setup([rec(), synthetic]);
+  const out = onPrompt(input, { dir, env, now: at(2 * HOUR) });
+  assert.equal(out?.decision, 'block'); assert.ok(out.reason.includes('195K') && out.reason.includes('120분'), out.reason);
+});
+test('a gap of 60 min 20 s reads 61분, never 60분', () => {
+  const { dir, input } = setup([rec()]);
+  const out = onPrompt(input, { dir, env, now: at(HOUR + 20000) });
+  assert.ok(out.reason.includes('61분'), out.reason);
+});
 test('agent-hooks: a stale block wins over main-pick; otherwise main-pick runs', async () => {
   const { dir, input } = setup([rec()]);
   const blocked = JSON.parse((await evaluate(input, { dir, env, now: at(2 * HOUR) })).output);

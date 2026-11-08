@@ -114,6 +114,15 @@ test('project agent overrides the user agent; a model line outside the frontmatt
   await onDispatch(input({}, { cwd: proj }), { fetchImpl: f, ...s });
   assert.equal(logOf(s.dir).at(-1).skip, 'rule_unknown');
 });
+test('empty cwd: no project lookup from the hook process cwd', async () => {
+  const s = setup();
+  const proc = join(s.dir, 'proc'); mkdirSync(join(proc, '.claude', 'agents'), { recursive: true });
+  writeFileSync(join(proc, '.claude', 'agents', 'analyst.md'), '---\nname: analyst\nmodel: sonnet\n---\nbody');
+  const before = process.cwd();
+  process.chdir(proc);
+  try { await onDispatch(input({}, { cwd: '' }), { fetchImpl: fetchOf(SONNET), ...s }); } finally { process.chdir(before); }
+  assert.equal(logOf(s.dir).at(-1).rule_model, 'opus');
+});
 test('summary only counts in the first 3 non-empty lines', async () => {
   const { out, f } = await go(input({ prompt: 'a\n\nb\nc\nSummary: Rename a variable.' }), SONNET);
   assert.equal(out, null); assert.equal(f.calls, 0);
