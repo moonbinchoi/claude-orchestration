@@ -10,11 +10,11 @@ import { readJson } from './guard-common.mjs';
 const TIERS = ['haiku', 'sonnet', 'opus'];
 // shares the 3.8 s hook budget with dispatch-guard's Jev call (2 s)
 const DEADLINE_MS = 1000;
-// word stems so plurals and other forms match ("secrets", "migrations", "deleting"); "auth" alone or auth(entic|oriz)*, not "authored"
 // the lock names the model to dispatch; anything else after "Model-lock:" is denied
 const LOCK = /^Model-lock:[ \t]*(haiku|sonnet|opus|fable)(?=\s|$)/i;
 const LOCK_DENY = 'Model-lock must name a model: "Model-lock: <haiku|sonnet|opus|fable>". Add the model and dispatch again.';
-const SENSITIVE =/\b(secur\w*|secret\w*|credential\w*|auth|oauth\w*|authenticat\w*|authoriz\w*|permission\w*|deploy\w*|migrat\w*|delet\w*|drop\w*|wip(e|es|ed|ing)|purg\w*|token\w*|password\w*|data loss|production|prod)\b/i;
+// word stems so plurals and other forms match ("secrets", "migrations", "deleting"); "auth" alone or auth(entic|oriz)*, not "authored"
+const SENSITIVE = /\b(secur\w*|secret\w*|credential\w*|auth|oauth\w*|authenticat\w*|authoriz\w*|permission\w*|deploy\w*|migrat\w*|delet\w*|drop\w*|wip(e|es|ed|ing)|purg\w*|token\w*|password\w*|data loss|production|prod)\b/i;
 
 // model and effort: from the frontmatter block only; undefined = no such file, null field = file without that line
 const agentModel = (agentsDir, name) => {

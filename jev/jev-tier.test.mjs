@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { run } from './jev-tier.mjs';
+import { run, doctor, MODEL_Q } from './jev-tier.mjs';
 import { assertEnglish, JevError, systemOne } from './jev-client.mjs';
 
 process.env.TYPESAFE_API_KEY = 'test-key-not-real';
@@ -19,7 +20,6 @@ const payload = (m, e = E, mo = {}, eo = {}) => ({
   answers: { model: answer(m, mo), ...(e === null ? {} : { effort: effortAns(e, eo) }) },
   usage: { input_tokens: 10, output_tokens: 2 },
 });
-const src = readFileSync(new URL('./jev-tier.mjs', import.meta.url), 'utf8');
 const respond = (obj, status = 200) => new Response(typeof obj === 'string' ? obj : JSON.stringify(obj), { status });
 const mockFetch = (handler) => { const f = async (url, init) => { f.calls++; f.last = JSON.parse(init.body); return handler(f.calls, init, f.last); }; f.calls = 0; return f; };
 const fixed = (obj) => mockFetch(() => respond(obj));
@@ -264,7 +264,21 @@ test('cache hit keeps effort; the cache key depends on EFFORT_Q', async () => {
   const f = fixed(payload({ haiku: 0.05, sonnet: 0.85, opus: 0.1 }, 3)); const o = opts(f);
   const a = await one(task(), o); const b = await one(task(), o);
   assert.equal(f.calls, 1); assert.equal(a.effort, 'xhigh'); assert.equal(b.effort, 'xhigh');
-  assert.ok(src.includes('JSON.stringify(EFFORT_Q)')); // old model-only entries hash differently, so they are never read
+});
+test('a model-only cache entry under the pre-effort key is never read', async () => {
+  const summary = 'Fix a failing unit test in one module.';
+  const o = opts(fixed(payload({ haiku: 0.05, sonnet: 0.85, opus: 0.1 }, 3)));
+  const oldKey = createHash('sha1').update('jev-latest' + summary + JSON.stringify(Object.keys(MODEL_Q.criteria)) + JSON.stringify(MODEL_Q)).digest('hex');
+  mkdirSync(join(o.dir, 'cache'), { recursive: true });
+  writeFileSync(join(o.dir, 'cache', oldKey + '.json'), JSON.stringify({ ts: Date.now(), response: payload({ haiku: 0.05, sonnet: 0.85, opus: 0.1 }, null) }));
+  const r = await one(task(summary), o);
+  assert.equal(o.fetchImpl.calls, 1); assert.equal(r.effort, 'xhigh'); assert.equal(lines(o.dir)[0].cached, false);
+});
+test('doctor: effort validity is its own check line', async () => {
+  const good = await doctor({ fetchImpl: fixed(payload({ haiku: 0.05, sonnet: 0.85, opus: 0.1 })), dir: tmp() });
+  assert.ok(good.some((l) => l.startsWith('PASS round trip')), good.join('|')); assert.ok(good.includes('PASS effort answer valid'), good.join('|'));
+  const bad = await doctor({ fetchImpl: fixed(payload({ haiku: 0.05, sonnet: 0.85, opus: 0.1 }, 7)), dir: tmp() });
+  assert.ok(bad.some((l) => l.startsWith('PASS round trip')), bad.join('|')); assert.ok(bad.includes('FAIL effort answer valid'), bad.join('|'));
 });
 test('floor: reviewer haiku pick -> sonnet, logged raw and floor_applied', async () => {
   const o = opts(fixed(payload({ haiku: 0.9, sonnet: 0.05, opus: 0.05 })));
