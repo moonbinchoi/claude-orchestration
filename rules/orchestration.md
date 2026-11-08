@@ -53,7 +53,7 @@ Write every brief with these parts:
 - **Context**: the paths, facts, and decisions the agent needs, and where to start looking. Pass large inputs as file paths; leave out conversation history.
 - **Scope**: what to touch and what to leave. When sources are split across agents, name the sources the others cover.
 - **Skills**: the skills to invoke when the work follows a method, such as TDD. Choose them here; skills that question the user or dispatch subagents stay in the main conversation.
-- **Return**: the report shape, a length cap if it differs from the default, and an output path when the full result is long. When the agent edits files, require a `Files changed:` line followed by one bullet per edited path.
+- **Return**: the report shape, a length cap if it differs from the default, and an output path when the full result is long. When the agent edits files, require a `Files changed:` line followed by one bullet per edited path. Start any report format the brief defines with a status line: DONE, PARTIAL, or BLOCKED.
 
 State each instruction as the behaviour to perform. Keep prohibitions for hard boundaries, each paired with what to do instead.
 
