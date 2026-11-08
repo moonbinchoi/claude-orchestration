@@ -9,11 +9,6 @@
 !/projects/e--Claude-orchestration/
 /projects/e--Claude-orchestration/*
 !/projects/e--Claude-orchestration/memory/
-!/projects/e--Study-Inflearn/
-/projects/e--Study-Inflearn/*
-!/projects/e--Study-Inflearn/memory/
-/projects/e--Study-Inflearn/memory/*
-!/projects/e--Study-Inflearn/memory/global-orchestration-requirements.md
 !/settings.json
 !/hooks/
 !/jev/

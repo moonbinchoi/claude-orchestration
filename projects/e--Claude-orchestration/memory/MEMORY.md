@@ -7,5 +7,6 @@
 - [Knowledge layer removed](knowledge-layer-removed.md) — removed 2026-10-22; archive + archived GitHub repo locations; never reinstall or propose it
 - [sdlc plugin](sdlc-plugin.md) — own repo E:\Claude\sdlc-plugin, local-marketplace install, edit only via writing-skills
 - [Orchestration remote repo](orchestration-remote-repo.md) — private GitHub claude-orchestration: branches (old/v1 = previous design, main, jev-*), what is tracked/excluded, merge plan ~2026-11-05; git push commands get denied, user runs them
-- [Jev usage reference](jev-usage-reference.md) — ~/.claude/jev/docs/jev-usage.md; read before any Jev call design or Jev skill
+- [Jev usage reference](jev-usage-reference.md) — ~/.claude/jev/docs/jev-usage.md; read before any Jev call design; 2026-11-07 decision: only a user-invoked /jev skill + CLI (handoff written)
 - [Harness work-unit folders](harness-design-docs-location.md) — one folder per work unit: E:\Claude\orchestration\docs\design\YYYY-MM-DD-slug (design docs + handoff + artifacts), never in ~/.claude
+- [Global orchestration requirements](global-orchestration-requirements.md) — requirements in E:/Claude/orchestration/docs/research/global-orchestration/requirements.md; design starts fresh

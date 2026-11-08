@@ -1,6 +1,6 @@
 ---
 name: global-orchestration-requirements
-description: User is defining global (all-project) orchestration rules and subagent instructions; requirements live in docs/research/global-orchestration/requirements.md
+description: User is defining global (all-project) orchestration rules and subagent instructions; requirements live in E:/Claude/orchestration/docs/research/global-orchestration/requirements.md
 metadata:
   node_type: memory
   type: project
@@ -8,7 +8,7 @@ metadata:
   modified: 2026-10-17T19:47:29.464Z
 ---
 
-As of 2026-10-18 the user's requirements for global orchestration rules and subagent instructions are in `e:\Study\Inflearn\docs\research\global-orchestration\requirements.md`. The next session works from it with `/mattpocock-skills:grilling`.
+As of 2026-10-18 the user's requirements for global orchestration rules and subagent instructions are in `E:\Claude\orchestration\docs\research\global-orchestration\requirements.md`. The next session works from it with `/mattpocock-skills:grilling`.
 
 **Why:** the user wants the new session to redo the research and design the rules and agent files from scratch.
 

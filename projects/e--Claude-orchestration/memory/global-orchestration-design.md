@@ -8,7 +8,7 @@ metadata:
   modified: 2026-10-21T18:17:34.784Z
 ---
 
-Installed 2026-10-18 after a grilling session. Requirements and the sourced design record: `E:\Study\Inflearn\.scratch\global-orchestration\requirements.md` and `research.md` (section 12 = verification results).
+Installed 2026-10-18 after a grilling session. Requirements and the sourced design record: `E:\Claude\orchestration\docs\research\global-orchestration\requirements.md` and `E:\Claude\orchestration\docs\research\global-orchestration\scratch\research.md` (section 12 = verification results).
 
 Installed:
 - `~/.claude/rules/orchestration.md`: standing delegation request, routing, model passing, BLOCKED handling, brief format.
@@ -22,7 +22,7 @@ Non-obvious facts learned:
 - A haiku subagent that loads CLAUDE.md follows "Reply to the user in Korean" unless the English instruction is the first body line.
 - Opus's injected "don't spawn unless asked" text is overridden by the rule's "standing request" wording (verified).
 
-2026-10-19 cost review: step-5 scans spent ~94% on Opus analysts (bulk reading on a fixed-Opus agent). Proposals A-L, evidence and open decisions: `E:\Study\Inflearn\.scratch\global-orchestration\improvements-2026-10-19.md` Applied 2026-10-19: A-G, I-L; verification in `research.md` §13 (A/C/F/G observed; B/D not observed because main judged extracts itself). H applied 2026-10-19 (~/.claude commit cdc24dd): Haiku citation accuracy matched Opus (n=19) but it narrowed scope silently, so bulk briefs now require per-item status and the judge step does dedupe and value. The user decides when to hand out bulk work; no usage-limit check (cancelled).
+2026-10-19 cost review: step-5 scans spent ~94% on Opus analysts (bulk reading on a fixed-Opus agent). Proposals A-L, evidence and open decisions: `E:\Claude\orchestration\docs\research\global-orchestration\scratch\improvements-2026-10-19.md` Applied 2026-10-19: A-G, I-L; verification in `research.md` §13 (A/C/F/G observed; B/D not observed because main judged extracts itself). H applied 2026-10-19 (~/.claude commit cdc24dd): Haiku citation accuracy matched Opus (n=19) but it narrowed scope silently, so bulk briefs now require per-item status and the judge step does dedupe and value. The user decides when to hand out bulk work; no usage-limit check (cancelled).
 
 `~/.claude` is a git repo (whitelist `.gitignore`: rules/, agents/, settings.json only). Commit there after editing those files.
 
