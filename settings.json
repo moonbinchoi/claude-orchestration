@@ -15,6 +15,20 @@
     "pdf-to-markdown": "off"
   },
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "C:/Users/skyra/.claude/hooks/session-check.mjs"
+            ],
+            "timeout": 30
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [
@@ -69,6 +83,19 @@
               "C:/Users/skyra/.claude/jev/agent-hooks.mjs"
             ],
             "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "C:/Users/skyra/.claude/hooks/frontmatter-validate.mjs"
+            ],
+            "timeout": 40
           }
         ]
       }
