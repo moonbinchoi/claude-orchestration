@@ -1,6 +1,6 @@
 # Jev evidence
 
-Sources behind [jev-usage.md](jev-usage.md). Full digests (2026-10-22): `E:\Study\Inflearn\docs\research\global-orchestration\jev-research-2026-10-22\` (R1 official docs, R2 community, R3 literature, R4 hook practice, 00-synthesis). Our shadow analysis: `E:\Study\Inflearn\docs\research\global-orchestration\shadow-review-2026-10-22\`.
+Sources behind [jev-usage.md](jev-usage.md). Full digests (2026-10-22): `E:\Claude\orchestration\docs\research\global-orchestration\jev-research-2026-10-22\` (R1 official docs, R2 community, R3 literature, R4 hook practice, 00-synthesis). Our shadow analysis: `E:\Claude\orchestration\docs\research\global-orchestration\shadow-review-2026-10-22\`.
 
 Verified by main against the source: confidence formula (110 router rows), Vals AI figures, limpet figures. Everything else is researcher-reported; several pages were read as fetch summaries.
 
@@ -10,7 +10,7 @@ Verified by main against the source: confidence formula (110 router rows), Vals 
 - Confidence formula, illustrative thresholds: confidence.md; patterns/confidence-routing.md; cookbooks consistency_choice (91% agreement, 99% with abstain < 0.60) and consistency_noul (0.30/0.70 band).
 - Pair and evidence recipes: cookbooks/entity_alignment.md (3-level Score), citation_check.md (supports/contradicts/says_nothing, string match first), classifying_rag_passages.md, sde_cascade.md.
 - Versions, price, limits: models.md, api/errors.md, legal.md (ZDR enterprise only).
-- Question types incl. Box (2026-11-07 digest `E:\Study\Inflearn\docs\research\global-orchestration\jev-research-2026-11-07\R5-question-types.md`): primitives/box.md (read by main: no criteria, edges 0-1 from top-left, no "not found" answer, pair with Noul, Dreamer-ready, header per request), images.md, changelog.md (Box new in 1.14, 2026-10-14), cookbooks feeder_watch and ocr_confidence_bounding_boxes. `jev-latest` resolves to jev-1.14.0 (doctor, 2026-11-07). Unverified: Box confidence nullable (box.md does not say), Box returning 400 on 1.13 (LiteLLM snippet only).
+- Question types incl. Box (2026-11-07 digest `E:\Claude\orchestration\docs\research\global-orchestration\jev-research-2026-11-07\R5-question-types.md`): primitives/box.md (read by main: no criteria, edges 0-1 from top-left, no "not found" answer, pair with Noul, Dreamer-ready, header per request), images.md, changelog.md (Box new in 1.14, 2026-10-14), cookbooks feeder_watch and ocr_confidence_bounding_boxes. `jev-latest` resolves to jev-1.14.0 (doctor, 2026-11-07). Unverified: Box confidence nullable (box.md does not say), Box returning 400 on 1.13 (LiteLLM snippet only).
 
 ## Independent tests
 - Vals AI, 2026-10-06, https://www.vals.ai/blogs/independent-evaluation-of-jev : claim verification 0.975 (390/400), ECE 0.011 lowest of 12; LegalBench class-balanced 0.730, last of 12, ECE 0.108 highest; confidence "adds no additional signal"; 33/33 "Yes" on contract_nli_permissible_copy; median latency 0.10 s.
