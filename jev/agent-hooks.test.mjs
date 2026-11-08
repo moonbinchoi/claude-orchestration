@@ -359,6 +359,41 @@ test('agent-hooks: SubagentStop records the stop and runs retry-guard; report-gu
   assert.ok(loaded.includes('retry-ran')); assert.ok(!loaded.includes('report-guard.mjs'), loaded.join(','));
   assert.deepEqual([reg(dir).at(-1).agent_id, reg(dir).at(-1).status], ['r1', 'DONE']);
 });
+// handback race: the host may write the SubagentHandback line while the hook runs
+const hbLine = (m) => JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'SubagentHandback', input: { message: m } }] } });
+const userLine = (s) => JSON.stringify({ type: 'user', message: { role: 'user', content: s } });
+const stopRun = async (texts, { lam = '', step = 0, env = {} } = {}) => {
+  const dir = tmp(); let reads = 0; let t = 1000;
+  const transcriptReader = () => ({ text: texts[Math.min(reads++, texts.length - 1)] });
+  await evaluate({ session_id: 's1', hook_event_name: 'SubagentStop', agent_id: 'w1', last_assistant_message: lam, agent_transcript_path: 'x' },
+    { dir, env, transcriptReader, now: () => (t += step), sleep: async () => {}, loader: (f) => (f === 'retry-guard.mjs' ? Promise.resolve({ afterEvent: async () => null }) : import(`./${f}`)) });
+  return { stop: reg(dir).at(-1), reads };
+};
+test('SubagentStop: handback not yet written -> re-reads until it lands', async () => {
+  const { stop, reads } = await stopRun(['', hbLine('PARTIAL\nwhy')], { step: 10 });
+  assert.deepEqual([stop.status, reads], ['PARTIAL', 2]); assert.ok(stop.waited_ms > 0);
+});
+test('SubagentStop: handback never lands -> unknown after the wait cap', async () => {
+  const { stop, reads } = await stopRun([''], { step: 200 });
+  assert.equal(stop.status, 'unknown'); assert.ok(reads > 1 && reads <= 10, String(reads)); assert.ok(stop.waited_ms >= 1500);
+});
+test('SubagentStop: a current handback without a status line, or a status in last_assistant_message -> no wait', async () => {
+  const a = await stopRun([hbLine('ISSUES 23')], { step: 10 });
+  assert.deepEqual([a.stop.status, a.reads, a.stop.waited_ms], ['unknown', 1, undefined]);
+  const b = await stopRun([''], { lam: 'DONE\nAll 3 tests pass.', step: 10 });
+  assert.deepEqual([b.stop.status, b.reads, b.stop.waited_ms], ['DONE', 0, undefined]);
+});
+test('SubagentStop: non-empty last_assistant_message without status waits only on the VS Code host (CLI writes no handback)', async () => {
+  const cli = await stopRun(['', hbLine('PARTIAL\nwhy')], { lam: 'summary text', step: 10, env: { CLAUDE_CODE_ENTRYPOINT: 'cli' } });
+  assert.deepEqual([cli.stop.status, cli.reads], ['unknown', 1]);
+  const vs = await stopRun(['', hbLine('PARTIAL\nwhy')], { lam: 'summary text', step: 10, env: { CLAUDE_CODE_ENTRYPOINT: 'claude-vscode' } });
+  assert.deepEqual([vs.stop.status, vs.reads], ['PARTIAL', 2]);
+});
+test('SubagentStop: resumed agent waits for the new round, not the old handback', async () => {
+  const old = [hbLine('DONE\nold'), userLine('resume')].join('\n');
+  const { stop } = await stopRun([old, old + '\n' + hbLine('BLOCKED\nnew')], { step: 10 });
+  assert.equal(stop.status, 'BLOCKED');
+});
 test('UserPromptSubmit: first prompt fires through the loader, second does not; other entrypoint skips', async () => {
   const dir = tmp();
   const input = { session_id: 'up1', hook_event_name: 'UserPromptSubmit', prompt: 'hello' };

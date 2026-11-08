@@ -12,6 +12,9 @@ import { dispatchEvent, textOf } from './guard-common.mjs';
 const defaultDir = () => join(homedir(), '.claude', 'jev');
 const LAUNCH_FAILED = /error|fail/i;
 const CAUSE_MAX = 300;
+// the host can write the SubagentHandback line while SubagentStop runs; re-read within this budget (entry self-exits at 4 s)
+const WAIT_MAX_MS = 1500;
+const POLL_MS = 100;
 
 const attempt = async (fn) => { try { return await fn(); } catch { return null; } };
 
@@ -34,7 +37,7 @@ function merge(outs) {
   return { hookSpecificOutput: { hookEventName: hs[0].hookEventName, ...(upd && { permissionDecision: 'allow', updatedInput: upd.updatedInput }), ...(ctx.length && { additionalContext: ctx.join('\n') }) } };
 }
 
-export async function evaluate(input, { fetchImpl = fetch, dir = defaultDir(), now = Date.now, transcriptReader = readTail, loader = (f) => import(`./${f}`), env = process.env } = {}) {
+export async function evaluate(input, { fetchImpl = fetch, dir = defaultDir(), now = Date.now, transcriptReader = readTail, sleep = (ms) => new Promise((r) => setTimeout(r, ms)), loader = (f) => import(`./${f}`), env = process.env } = {}) {
   if (!input || typeof input !== 'object') return { output: null };
   const ev = input.hook_event_name;
   const sid = input.session_id ?? null;
@@ -74,11 +77,18 @@ export async function evaluate(input, { fetchImpl = fetch, dir = defaultDir(), n
   }
 
   if (ev === 'SubagentStop') {
-    const tr = await attempt(() => transcriptReader(input.agent_transcript_path));
-    const { text, status } = readReport(input, () => tr?.text ?? '');
+    const read = (p) => transcriptReader(p)?.text ?? ''; // readReport catches a failed read
+    const t0 = now();
+    let report = readReport(input, read);
+    let polls = 0;
+    // the CLI fills last_assistant_message and writes no handback, so a non-empty message only waits on the VS Code host
+    const mayWait = !String(input.last_assistant_message ?? '').trim() || env.CLAUDE_CODE_ENTRYPOINT === 'claude-vscode';
+    while (mayWait && report.pending && now() - t0 < WAIT_MAX_MS) { await sleep(POLL_MS); polls++; report = readReport(input, read); }
+    const waited = polls ? now() - t0 : 0;
+    const { text, status } = report;
     const fc = await attempt(() => loader('failure-cause.mjs'));
     const failure = (await attempt(() => fc?.classifyFailure({ text, status, launchStatus: null }))) ?? null;
-    append(dir, 'registry.jsonl', { ts: ts(), event: 'stop', session_id: sid, agent_id: input.agent_id ?? null, status, failure });
+    append(dir, 'registry.jsonl', { ts: ts(), event: 'stop', session_id: sid, agent_id: input.agent_id ?? null, status, failure, ...(waited > 0 && { waited_ms: waited }) });
     await attempt(async () => (await loader('retry-guard.mjs')).afterEvent(input, { dir, now, fetchImpl, via: 'stop' }));
     return { output: null };
   }
