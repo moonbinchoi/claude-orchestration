@@ -110,6 +110,19 @@ test('onDispatch: enforce deny / flag / rerun override / log mode / unflagged', 
   assert.equal(onDispatch(inp(), { dir, priors: [], sameAs: 't1' }), null); assert.equal(onDispatch(inp(), { dir, priors: [flaggedPrior('env_auth', 'auth', 'would_deny')], sameAs: null }), null);
   const log = tmp(); assert.equal(onDispatch(inp(), { dir: log, priors: [flaggedPrior('env_auth', 'auth', 'would_deny')], sameAs: 't1' }), null); assert.equal(lines(log, 'retry-guard.jsonl')[0].mode, 'log');
 });
+test('notice mode: would_deny and would_flag become additionalContext, never deny', async () => {
+  const dir = tmp(); cfg(dir, 'notice');
+  for (const [cls, sub, v, re] of [['same_cause_repeat', null, 'would_deny', /same cause/], ['env_auth', 'auth', 'would_deny', /environment problem/], ['env_auth', 'transient', 'would_flag', /transient error/]]) {
+    const h = onDispatch(inp(), { dir, priors: [flaggedPrior(cls, sub, v)], sameAs: 't1' }).hookSpecificOutput;
+    assert.deepEqual(Object.keys(h), ['hookEventName', 'additionalContext']); assert.equal(h.hookEventName, 'PreToolUse'); assert.match(h.additionalContext, re);
+  }
+  assert.equal(onDispatch(inp('do it\nRerun: env fixed - perms'), { dir, priors: [flaggedPrior('env_auth', 'auth', 'would_deny')], sameAs: 't1' }), null);
+  assert.deepEqual(lines(dir, 'retry-guard.jsonl').map((r) => r.mode), ['notice', 'notice', 'notice', 'notice']);
+  const mk = (text) => { const d = tmp(); cfg(d, 'notice'); seed(d, 't1', text); return d; };
+  const out = (await afterEvent(ev('link', 't1'), { dir: mk('permission denied'), via: 'link' })).hookSpecificOutput;
+  assert.deepEqual(Object.keys(out), ['hookEventName', 'additionalContext']); assert.match(out.additionalContext, /environment problem \(permission\)/);
+  assert.equal(await afterEvent(ev('link', 't1'), { dir: mk('build failed'), via: 'link' }), null);
+});
 
 for (const [name, fn] of cases) {
   try { await fn(); console.log(`ok   ${name}`); } catch (e) { failed++; console.log(`FAIL ${name}\n     ${e.message.split('\n').join('\n     ')}`); }

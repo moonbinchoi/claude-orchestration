@@ -1,5 +1,5 @@
 // agent-hooks: hook entry for PreToolUse(Agent), PostToolUse(Agent), SubagentStop and UserPromptSubmit. Records events in the registry and
-// runs router-guard (model downgrade), dispatch-guard, retry-guard and report-guard; UserPromptSubmit runs stale-resume (blocks a resume that would rewrite an expired cache), then main-pick-trigger (first-prompt model hint). Each guard loads in its own try/catch so one broken module never stops the other
+// runs router-guard (model downgrade), dispatch-guard and retry-guard; UserPromptSubmit runs stale-resume (blocks a resume that would rewrite an expired cache), then main-pick-trigger (first-prompt model hint). Each guard loads in its own try/catch so one broken module never stops the other
 // or the recording. Fail-open, always exit 0.
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -12,7 +12,6 @@ import { dispatchEvent, textOf } from './guard-common.mjs';
 const defaultDir = () => join(homedir(), '.claude', 'jev');
 const LAUNCH_FAILED = /error|fail/i;
 const CAUSE_MAX = 300;
-const HOOK_BUDGET_MS = 3800; // the entry self-exits at 4 s
 
 const attempt = async (fn) => { try { return await fn(); } catch { return null; } };
 
@@ -35,7 +34,7 @@ function merge(outs) {
   return { hookSpecificOutput: { hookEventName: hs[0].hookEventName, ...(upd && { permissionDecision: 'allow', updatedInput: upd.updatedInput }), ...(ctx.length && { additionalContext: ctx.join('\n') }) } };
 }
 
-export async function evaluate(input, { fetchImpl = fetch, dir = defaultDir(), now = Date.now, startedAt = now(), transcriptReader = readTail, loader = (f) => import(`./${f}`), env = process.env } = {}) {
+export async function evaluate(input, { fetchImpl = fetch, dir = defaultDir(), now = Date.now, transcriptReader = readTail, loader = (f) => import(`./${f}`), env = process.env } = {}) {
   if (!input || typeof input !== 'object') return { output: null };
   const ev = input.hook_event_name;
   const sid = input.session_id ?? null;
@@ -75,18 +74,12 @@ export async function evaluate(input, { fetchImpl = fetch, dir = defaultDir(), n
   }
 
   if (ev === 'SubagentStop') {
-    const tr = await attempt(() => transcriptReader(input.agent_transcript_path)); // read once, shared by the report reader and report-guard
+    const tr = await attempt(() => transcriptReader(input.agent_transcript_path));
     const { text, status } = readReport(input, () => tr?.text ?? '');
     const fc = await attempt(() => loader('failure-cause.mjs'));
     const failure = (await attempt(() => fc?.classifyFailure({ text, status, launchStatus: null }))) ?? null;
     append(dir, 'registry.jsonl', { ts: ts(), event: 'stop', session_id: sid, agent_id: input.agent_id ?? null, status, failure });
-    await Promise.all([
-      attempt(async () => (await loader('retry-guard.mjs')).afterEvent(input, { dir, now, fetchImpl, via: 'stop' })),
-      attempt(async () => {
-        const guardModule = await loader('report-guard.mjs');
-        return guardModule.onStop(input, { text, status, transcript: tr, deadlineAt: startedAt + HOOK_BUDGET_MS, dir, now, fetchImpl });
-      }),
-    ]);
+    await attempt(async () => (await loader('retry-guard.mjs')).afterEvent(input, { dir, now, fetchImpl, via: 'stop' }));
     return { output: null };
   }
   return { output: null };
@@ -100,7 +93,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     let input = null;
     try { input = JSON.parse(raw); } catch { /* garbage stdin: silent exit */ }
     if (input && typeof input === 'object') {
-      const { output } = await evaluate(input, { dir: process.env.JEV_DIR || defaultDir(), startedAt: Date.now() - process.uptime() * 1000 });
+      const { output } = await evaluate(input, { dir: process.env.JEV_DIR || defaultDir() });
       if (output) process.stdout.write(output);
     }
   } catch { /* fail-open */ }

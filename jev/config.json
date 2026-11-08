@@ -1,1 +1,1 @@
-{ "modelAlias": "jev-1.14.0" }
+{ "modelAlias": "jev-1.14.0", "retryGuard": { "mode": "notice" } }

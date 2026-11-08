@@ -70,9 +70,9 @@ Box is image-only and "Dreamer-ready" (not production; format may change). It ne
 
 **Same or different** (`dispatch-guard.mjs`, `retry-guard.mjs`): a deterministic first pass (hash, Jaccard, error signature) decides most pairs. For near pairs use a 3-level Score (different / related, may or may not be the same / same) and act on the top level only. Intent (repeat on purpose, variant, retry) must be in the state as a field or marker; text cannot show it.
 
-**Claim versus evidence** (`claim-judge.mjs`): string-match quotes in code first; skip placeholder evidence. State `{claim, evidence}` with real evidence text; options supports / contradicts / says_nothing; severity, if needed, as a separate question.
+**Claim versus evidence** (was `claim-judge.mjs`, removed 2026-11-08 with report-guard: serious precision 0/8): string-match quotes in code first; skip placeholder evidence. State `{claim, evidence}` with real evidence text; options supports / contradicts / says_nothing; severity, if needed, as a separate question.
 
-**Turn-end judgment** (`stop-guard.mjs`): compute running background work and open questions in code, skip judgment when they apply, then one Noul per rule. Treat the result as a nudge, never a hard block, and allow a second stop through.
+**Turn-end judgment** (was `stop-guard.mjs`, removed 2026-11-08: sentence-only state lacks context, 5 of 6 Jev blocks false): compute running background work and open questions in code, skip judgment when they apply, then one Noul per rule. Treat the result as a nudge, never a hard block, and allow a second stop through.
 
 ## Evaluating an integration
 
@@ -80,13 +80,11 @@ Box is image-only and "Dreamer-ready" (not production; format may change). It ne
 - Ground truth comes from hand labels or fresh paired runs with a held-out baseline. Replaying logged agent runs on another model is invalid.
 - Before promotion, review every case where Jev would have chosen the cheaper or weaker action.
 
-## Our integrations (status 2026-10-22)
+## Our integrations (status 2026-11-08)
 
 | File | Question | Status |
 |---|---|---|
 | `jev-tier.mjs` + `router-guard.mjs` | tier (Choice 3) on the brief's `Summary:` line, confidence-floor step-up only; effort (Score 5) in the same request, shadow only (logged, never applied; 2-week window from the merge, see design 2026-11-08-jev-model-lock-effort) | live: PreToolUse hook lowers `model` to min(rule, Jev); applies the `Model-lock:` model and denies a lock without one, skips fable, fork, unknown rule tier, sensitive summaries, rule at floor; log `router.jsonl` |
 | `main-pick.mjs` | main-session tier + effort on the first prompt summary | live, advisory; main proceeds in the same turn when the pick equals its model |
-| `stop-guard.mjs` | Noul "announced an action and stopped" (English weak cases only), p >= 0.85 | log only; skipped while a subagent runs |
 | `dispatch-guard.mjs` | Score 3 levels on `{task_a, task_b}`, duplicate at p("same") >= 0.85 | log only; `Repeat:` line marks intentional repeats |
-| `retry-guard.mjs` | none (deterministic signature; near pairs -> unknown) | log only |
-| `claim-judge.mjs` | claim/evidence relation (supports / contradicts / says_nothing); placeholder evidence is not sent | log only; report-level question removed (was at chance) |
+| `retry-guard.mjs` | none (deterministic signature; near pairs -> unknown) | notice (2026-11-08): flagged verdicts become additionalContext at the link (foreground) or the matched re-dispatch, never deny |
