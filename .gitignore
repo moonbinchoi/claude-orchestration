@@ -4,6 +4,9 @@
 !/rules/
 /rules/design-workflow.md
 !/agents/
+!/skills/
+/skills/*
+!/skills/jev/
 !/projects/
 /projects/*
 !/projects/e--Claude-orchestration/
