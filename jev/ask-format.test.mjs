@@ -67,6 +67,17 @@ test('two marks', () => {
   assert.equal(formatItem('i', withComp, comp, a).lines[0],
     'Jev i.length: keep 0.55 (shorten 0.45); unsure: low_p, no_option_fits');
 });
+test('prototype key question', () => {
+  const qs = { constructor: choiceQ.length, tostring_fits: withComp.length_fits };
+  const a = { constructor: ch(0.8, 0.2).length, tostring_fits: { noul: 0.4 } };
+  const r = formatItem('i', qs, { tostring_fits: 'constructor' }, a);
+  assert.deepEqual(r.lines, [
+    'Jev i.constructor: keep 0.80 (shorten 0.20); unsure: no_option_fits',
+    'Jev i.tostring_fits: p 0.40 companion of constructor',
+  ]);
+  const plain = formatItem('i', { constructor: noulQ.ok }, {}, { constructor: { noul: 0.82 } });
+  assert.deepEqual(plain.lines, ['Jev i.constructor: p 0.82 yes']);
+});
 
 for (const [name, fn] of cases) {
   try { fn(); console.log('ok   ' + name); } catch (e) { failed++; console.log('FAIL ' + name + '\n  ' + e.message); }

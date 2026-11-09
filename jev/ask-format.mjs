@@ -10,7 +10,7 @@ function ranked(q, a, label) {
 export function formatItem(itemId, questions, companions, answers) {
   const lines = [];
   const top_p = [];
-  const targetMarks = {}; // target question ID -> companion marks
+  const targetMarks = Object.create(null); // target question ID -> companion marks
   for (const [nid, target] of Object.entries(companions)) {
     const a = answers[nid];
     const mark = !a ? 'companion_missing' : a.noul < 0.7 ? 'no_option_fits' : null;
@@ -24,7 +24,7 @@ export function formatItem(itemId, questions, companions, answers) {
     let body;
     if (q.type === 'noul') {
       top_p.push(a.noul);
-      if (companions[qid]) body = `p ${f2(a.noul)} companion of ${companions[qid]}`;
+      if (Object.hasOwn(companions, qid)) body = `p ${f2(a.noul)} companion of ${companions[qid]}`;
       else {
         body = `p ${f2(a.noul)}`;
         if (a.noul >= 0.7) body += ' yes';

@@ -26,7 +26,7 @@ Question design (types, wording, state, reading answers): read `C:/Users/skyra/.
 
 ## Request file
 
-Write it with the Write tool into the session scratchpad, then run once:
+Write it with the Write tool into the session scratchpad, then run once (one re-run only after `input_rejected`, which makes no Jev call):
 
 `node C:/Users/skyra/.claude/jev/jev-ask.mjs "<file>"`
 
@@ -44,7 +44,7 @@ Write it with the Write tool into the session scratchpad, then run once:
 - Rewrite a Korean request as fresh English questions and named state fields. Translate no sentence.
 - Limits: items 1-10; questions per item 1-10; state fields 1-20 (string, number, or boolean values); criteria 2-10 per question (Choice: key to description; Score: ordered list, level 0 first; Noul: none). IDs match `^[a-z][a-z0-9_]{0,39}$`. English only.
 - Put no paths, URLs, emails, secrets, long hex, or numbers of 4+ digits inside strings. Pass numbers as number values.
-- On `Jev failed: input_rejected: <rule> at <where>`, fix that string and run once more.
+- On `Jev failed: input_rejected: <rule>` (with or without ` at <where>`), fix your request and run once more; report a second rejection as a failure.
 
 ## Reading the output
 

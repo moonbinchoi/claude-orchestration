@@ -59,7 +59,8 @@ bad('score not list', mut((i) => { i.questions.sev.criteria = { a: 'one', b: 'tw
 bad('noul bad criteria', mut((i) => { i.questions.length_fits.criteria = { yes: 'It fits.', no: 'It does not fit.' }; }), 'bad_criteria', null);
 bad('companion not noul', mut((i) => { i.companions = { length: 'sev' }; }), 'bad_companion', null);
 bad('companion to noul', mut((i) => { i.companions = { length_fits: 'length_fits' }; }), 'bad_companion', null);
-bad('cjk', mut((i) => { i.state.audience = '짧게 bla'; }), 'cjk', 'pr_1.state.audience');
+bad('extra question key', mut((i) => { i.questions.length.note = 'C:/x'; }), 'bad_shape', null);
+bad('cjk',mut((i) => { i.state.audience = '짧게 bla'; }), 'cjk', 'pr_1.state.audience');
 bad('guard', mut((i) => { i.questions.length.instructions = 'a'.repeat(401); }), 'too_long', 'pr_1.questions.length.instructions');
 bad('path', mut((i) => { i.questions.length.criteria.keep = 'see src/a.js'; }), 'path_url_email', 'pr_1.questions.length.criteria.keep');
 bad('guard path', mut((i) => { i.questions.length.criteria.keep = 'see /usr/a.js'; }), 'posix_path', 'pr_1.questions.length.criteria.keep');
