@@ -7,6 +7,8 @@ import { assertEnglish } from './jev-client.mjs';
 export const RERUN = /^Rerun:\s*\S/im;
 // slash path, url, email or backslash path left in text that would go to Jev
 export const PATH_URL_EMAIL = /\w\/\w|:\/\/|@\w+\.|\w\\\w/;
+// one CJK character (Hangul, Han, Hiragana, Katakana), to detect text that is not English
+export const CJK = /[\p{Script=Hangul}\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u;
 
 // first line of a report: DONE | PARTIAL | BLOCKED, optionally after a `Status:` or `STATUS:` label
 export const STATUS = /^[\s*#_>`-]*(?:(?:[Ss]tatus|STATUS)\s*:[\s*_`]*)?(DONE|PARTIAL|BLOCKED)\b/;

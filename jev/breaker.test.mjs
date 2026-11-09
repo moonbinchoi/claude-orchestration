@@ -36,6 +36,12 @@ test('thresholds not passed come from config.json', () => {
   const b = createBreaker({ dir: d, now: () => 1000 });
   b.fail(); b.save(); assert.deepEqual(state(d), { failures: 1, open_until: 1200 });
 });
+test('custom file leaves breaker.json alone', () => {
+  const d = tmp(); const b = createBreaker({ dir: d, file: 'jev-ask-breaker.json', failures: 1 });
+  b.fail(); b.save();
+  assert.equal(JSON.parse(readFileSync(join(d, 'jev-ask-breaker.json'), 'utf8')).failures, 1);
+  assert.equal(existsSync(join(d, 'breaker.json')), false);
+});
 
 for (const [name, fn] of cases) {
   try { await fn(); console.log(`ok   ${name}`); } catch (e) { failed++; console.log(`FAIL ${name}\n     ${e.message.split('\n').join('\n     ')}`); }
