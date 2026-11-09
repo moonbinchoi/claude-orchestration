@@ -80,7 +80,7 @@ Box is image-only and "Dreamer-ready" (not production; format may change). It ne
 - Ground truth comes from hand labels or fresh paired runs with a held-out baseline. Replaying logged agent runs on another model is invalid.
 - Before promotion, review every case where Jev would have chosen the cheaper or weaker action.
 
-## Our integrations (status 2026-11-08)
+## Our integrations (status 2026-11-10)
 
 | File | Question | Status |
 |---|---|---|
@@ -88,3 +88,4 @@ Box is image-only and "Dreamer-ready" (not production; format may change). It ne
 | `main-pick.mjs` | main-session tier + effort on the first prompt summary | live, advisory; main proceeds in the same turn when the pick equals its model |
 | `dispatch-guard.mjs` | Score 3 levels on `{task_a, task_b}`, duplicate at p("same") >= 0.85 | log only; `Repeat:` line marks intentional repeats |
 | `retry-guard.mjs` | none (deterministic signature; near pairs -> unknown) | notice (2026-11-08): flagged verdicts become additionalContext at the link (foreground) or the matched re-dispatch, never deny |
+| `jev-ask.mjs` + `/jev` skill | per-item Choice/Score/Noul when the user invokes it, companion Noul | live, user-invoked; own breaker `jev-ask-breaker.json`, off switch `jevAsk.mode`, log `jev-ask.jsonl` (hash + length) |
