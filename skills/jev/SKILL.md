@@ -18,7 +18,7 @@ Question design (types, wording, state, reading answers): read `C:/Users/skyra/.
 ## Steps
 
 1. Make each thing to judge one question: Choice (pick one option), Score (a level on a scale), or Noul (yes/no probability).
-2. Write the state as English fields holding facts only. Never put the conclusion being asked about in state (no `needs_shortening: true`, no pre-judged labels).
+2. Write the state as English fields holding what the item observably is or did (files touched, counts, the change in the user's own facts). A field that restates or paraphrases an option's description hands Jev the answer: for a feature-vs-bugfix choice, `adds_new_user_facing_capability: true` and `behavior_change: "users gain a new export action"` are the wrong move; `files_changed: 3` and `title_verb: "add"` are facts.
 3. Use option IDs you choose. When no option may fit, add a companion Noul ("one of the options fits").
 4. Write the request file and run the CLI (below). Send without asking the user for confirmation.
 5. Read the output (below). When it is unsure, fall back to your own judgment.
