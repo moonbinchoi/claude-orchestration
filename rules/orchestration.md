@@ -9,7 +9,7 @@ The user requests delegation in the cases below. Treat each case as the user ask
 Delegate when the work:
 - sweeps 10 or more files;
 - produces verbose output the main conversation will not reread: test, build, and lint runs, log scans, documentation lookups;
-- splits into 3 or more independent pieces, such as several research questions. Dispatch the pieces in parallel, in one message.
+- splits into 3 or more independent pieces that each need 3 or more tool turns, such as several research questions. Dispatch the pieces in parallel, in one message.
 
 Keep the work in the main conversation when it needs fewer than 3 tool turns, when each step needs the previous step's full output, when it edits files other running work also edits, or when it needs back-and-forth with the user.
 
@@ -59,7 +59,9 @@ State each instruction as the behaviour to perform. Keep prohibitions for hard b
 
 For bulk input, tell the agent to read only grep hits, write interim results to the output path as it goes, and keep its context under ~150K tokens. List every input item and require a status for each: done, or skipped with the reason.
 
-Before acting on a claim a decision depends on, read the lines it cites yourself.
+`reviewer` has no Write tool: it returns its full result in the report, so give it no output path.
+
+Before acting on a claim that decides a verdict, an edit, or a choice between options, read the lines it cites yourself. A verbatim quote with its path and line range in the agent's report counts as read.
 
 ## Interruptions
 
