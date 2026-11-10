@@ -16,7 +16,7 @@ Leading word: **snap judgment**. Jev answers what a knowledgeable person could j
 - Answer shapes (verified on jev-1.14.0): choice `{choice, probabilities, confidence}`; score (criteria is a LIST) `{score, confidence, legend, probabilities: {"0": p, ...}}`; noul `{noul: p}`.
 - Body `{model, state, questions}` to `POST https://api.typesafe.ai/v1/systemone`, key in env `TYPESAFE_API_KEY`.
 - Send the versioned ID from `config.json` `modelAlias` (now `jev-1.14.0`). Aliases move (`jev-latest` = 1.13.0, `jev-preview` = 1.14.0 on 2026-10-22; `jev-latest` = 1.14.0 by doctor on 2026-11-07); thresholds tuned on one version do not carry over. Run `node jev-tier.mjs doctor` after a release.
-- Errors: retry only 429/529 with backoff. `invalid_response` is our validator, not the API; its reason is in the error message, logged as `fallback_detail`.
+- Errors: the API's retryable codes are 429/529 (retry with backoff); `jev-client.mjs` does not retry, and callers fail open. `invalid_response` is our validator, not the API; its reason is in the error message, logged as `fallback_detail`.
 - Batch every question about one state into one request (fan-out); batching does not change answers.
 - Limits: 64k tokens per request, 32k per question.
 

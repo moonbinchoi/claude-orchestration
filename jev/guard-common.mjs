@@ -18,13 +18,12 @@ export const textOf = (c, sep = '\n') => (typeof c === 'string' ? c : Array.isAr
 
 export const readJson = (f) => { try { return JSON.parse(readFileSync(f, 'utf8')); } catch { return null; } };
 
-// config.json[key].mode when it is one of `modes`, else 'log'; the Jev model alias; jevShadow (config[key].jevShadow, true unless false).
+// config.json[key].mode when it is one of `modes`, else 'log'; the Jev model alias.
 export function loadConfig(dir, key, modes) {
   const c = readJson(join(dir, 'config.json'));
   const mode = c?.[key]?.mode;
   return {
     mode: modes.includes(mode) ? mode : 'log',
-    jevShadow: c?.[key]?.jevShadow !== false,
     alias: typeof c?.modelAlias === 'string' && c.modelAlias ? c.modelAlias : 'jev-latest',
   };
 }

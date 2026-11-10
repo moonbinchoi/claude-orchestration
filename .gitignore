@@ -2,7 +2,6 @@
 !/.gitignore
 !/CLAUDE.md
 !/rules/
-/rules/design-workflow.md
 !/agents/
 !/skills/
 /skills/*
