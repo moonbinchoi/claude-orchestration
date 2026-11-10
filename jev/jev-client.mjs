@@ -1,5 +1,5 @@
-// Shared Jev (TypeSafe System One) client. The request/response shape below is reconstructed
-// from docs and unverified; every API-shape assumption lives in systemOne() so it is easy to fix.
+// Shared Jev (TypeSafe System One) client. Request and response shapes follow the OpenAPI spec
+// (https://api.typesafe.ai/openapi.json); every API-shape assumption lives in systemOne() so it is easy to fix.
 
 const URL_SYSTEMONE = 'https://api.typesafe.ai/v1/systemone';
 const MAX_BODY_BYTES = 64 * 1024;
