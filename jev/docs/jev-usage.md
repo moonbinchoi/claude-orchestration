@@ -1,6 +1,6 @@
 # Jev usage reference
 
-Read before designing, changing, or reviewing any TypeSafe Jev call. Written 2026-10-22 from the official docs, community projects, the routing/judge literature, and our own shadow logs; evidence and citations in [jev-evidence.md](jev-evidence.md).
+Read before designing, changing, or reviewing any TypeSafe Jev call. Sources: the official docs, community projects, the routing/judge literature, and our own shadow logs; evidence and citations in [jev-evidence.md](jev-evidence.md).
 
 Leading word: **snap judgment**. Jev answers what a knowledgeable person could judge in a second from short English text. Everything else (facts, counts, dates, file checks, reasoning) belongs in code or in a Claude model.
 
@@ -15,7 +15,7 @@ Leading word: **snap judgment**. Jev answers what a knowledgeable person could j
 - Use `jev-client.mjs` `systemOne()` (strict validation of choice, score and noul answers, typed `JevError`, caller-owned timeout, 64 KiB cap). Every caller fails open to the non-Jev path.
 - Answer shapes (verified on jev-1.14.0): choice `{choice, probabilities, confidence}`; score (criteria is a LIST) `{score, confidence, legend, probabilities: {"0": p, ...}}`; noul `{noul: p}`.
 - Body `{model, state, questions}` to `POST https://api.typesafe.ai/v1/systemone`, key in env `TYPESAFE_API_KEY`.
-- Send the versioned ID from `config.json` `modelAlias` (now `jev-1.14.0`). Aliases move (`jev-latest` = 1.13.0, `jev-preview` = 1.14.0 on 2026-10-22; `jev-latest` = 1.14.0 by doctor on 2026-11-07); thresholds tuned on one version do not carry over. Run `node jev-tier.mjs doctor` after a release.
+- Send the versioned ID from `config.json` `modelAlias` (now `jev-1.14.0`). Aliases move; thresholds tuned on one version do not carry over. Run `node jev-tier.mjs doctor` after a release.
 - Errors: the API's retryable codes are 429/529 (retry with backoff); `jev-client.mjs` does not retry, and callers fail open. `invalid_response` is our validator, not the API; its reason is in the error message, logged as `fallback_detail`.
 - Batch every question about one state into one request (fan-out); batching does not change answers.
 - Limits: 64k tokens per request, 32k per question.
@@ -70,9 +70,9 @@ Box is image-only and "Dreamer-ready" (not production; format may change). It ne
 
 **Same or different** (`dispatch-guard.mjs`, `retry-guard.mjs`): a deterministic first pass (hash, Jaccard, error signature) decides most pairs. For near pairs use a 3-level Score (different / related, may or may not be the same / same) and act on the top level only. Intent (repeat on purpose, variant, retry) must be in the state as a field or marker; text cannot show it.
 
-**Claim versus evidence** (was `claim-judge.mjs`, removed 2026-11-08 with report-guard: serious precision 0/8): string-match quotes in code first; skip placeholder evidence. State `{claim, evidence}` with real evidence text; options supports / contradicts / says_nothing; severity, if needed, as a separate question.
+**Claim versus evidence** (our claim judge: serious precision 0/8): string-match quotes in code first; skip placeholder evidence. State `{claim, evidence}` with real evidence text; options supports / contradicts / says_nothing; severity, if needed, as a separate question.
 
-**Turn-end judgment** (was `stop-guard.mjs`, removed 2026-11-08: sentence-only state lacks context, 5 of 6 Jev blocks false): compute running background work and open questions in code, skip judgment when they apply, then one Noul per rule. Treat the result as a nudge, never a hard block, and allow a second stop through.
+**Turn-end judgment** (sentence-only state lacks context: 5 of 6 Jev blocks false): compute running background work and open questions in code, skip judgment when they apply, then one Noul per rule. Treat the result as a nudge, never a hard block, and allow a second stop through.
 
 ## Evaluating an integration
 
@@ -80,12 +80,12 @@ Box is image-only and "Dreamer-ready" (not production; format may change). It ne
 - Ground truth comes from hand labels or fresh paired runs with a held-out baseline. Replaying logged agent runs on another model is invalid.
 - Before promotion, review every case where Jev would have chosen the cheaper or weaker action.
 
-## Our integrations (status 2026-11-10)
+## Our integrations
 
 | File | Question | Status |
 |---|---|---|
-| `jev-tier.mjs` + `router-guard.mjs` | tier (Choice 3) on the brief's `Summary:` line, confidence-floor step-up only; effort (Score 5) in the same request, shadow only (logged, never applied; 2-week window from the merge, see design 2026-11-08-jev-model-lock-effort) | live: PreToolUse hook lowers `model` to min(rule, Jev); applies the `Model-lock:` model and denies a lock without one, skips fable, fork, unknown rule tier, sensitive summaries, rule at floor; log `router.jsonl` |
+| `jev-tier.mjs` + `router-guard.mjs` | tier (Choice 3) on the brief's `Summary:` line, confidence-floor step-up only; effort (Score 5) in the same request, shadow only (logged, never applied) until 2026-11-22, see design 2026-11-08-jev-model-lock-effort | live: PreToolUse hook lowers `model` to min(rule, Jev); applies the `Model-lock:` model and denies a lock without one, skips fable, fork, unknown rule tier, sensitive summaries, rule at floor; log `router.jsonl` |
 | `main-pick.mjs` | main-session tier + effort on the first prompt summary | live, advisory; main proceeds in the same turn when the pick equals its model |
 | `dispatch-guard.mjs` | Score 3 levels on `{task_a, task_b}`, duplicate at p("same") >= 0.85 | log only; `Repeat:` line marks intentional repeats |
-| `retry-guard.mjs` | none (deterministic signature; near pairs -> unknown) | notice (2026-11-08): flagged verdicts become additionalContext at the link (foreground) or the matched re-dispatch, never deny |
+| `retry-guard.mjs` | none (deterministic signature; near pairs -> unknown) | notice: flagged verdicts become additionalContext at the link (foreground) or the matched re-dispatch, never deny |
 | `jev-ask.mjs` + `/jev` skill | per-item Choice/Score/Noul when the user invokes it, companion Noul | live, user-invoked; own breaker `jev-ask-breaker.json`, off switch `jevAsk.mode`, log `jev-ask.jsonl` (hash + length) |

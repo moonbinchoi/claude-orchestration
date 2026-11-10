@@ -5,12 +5,12 @@ metadata:
   node_type: memory
   type: feedback
   originSessionId: 26eb969e-7ebe-4fa2-bcef-2b50fb8cdb23
-  modified: 2026-11-07T09:04:08.446Z
+  modified: 2026-11-10T06:34:39.283Z
 ---
 
 One work unit = one folder: `E:\Claude\orchestration\docs\design\YYYY-MM-DD-<slug>\`. Put everything for that unit in it: intent.md, spec.md, plan.md, the handoff, the status file, scripts, data and results. When one unit holds several sdlc designs, give each its own subfolder named `YYYY-MM-DD-<slug>` and pass that path to the sdlc skills. Do not commit any of this into `~/.claude`.
 
-**Why:** the user wants one folder per work unit. The sdlc skills create and look up designs under `docs/design/`, and `docs/design/2026-10-22-design-docs-concepts/design-docs-concepts.md` §184-187 chose `docs/design/YYYY-MM-DD-<slug>/` and rejected root-level feature folders. On 2026-11-07 every earlier unit was moved to match: knowledge-layer eval (2026-10-21), knowledge-layer removal archive (2026-10-22), the design-docs concepts (2026-10-22), and the token audit (2026-11-07).
+**Why:** the user wants one folder per work unit. The sdlc skills create and look up designs under `docs/design/`, and `docs/design/2026-10-22-design-docs-concepts/design-docs-concepts.md` §184-187 chose `docs/design/YYYY-MM-DD-<slug>/` and rejected root-level feature folders.
 
 **How to apply:**
 - The orchestration folder is not a git repo yet (the user will decide later), so these files have no history or backup.
