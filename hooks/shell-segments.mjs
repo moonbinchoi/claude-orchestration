@@ -35,7 +35,8 @@ function readBody(s, i, delim, strip) {
 function skipSub(s, i) {
   let depth = 1;
   while (i < s.length) {
-    if (s.startsWith('<<', i) && s[i + 2] !== '<') {
+    if (s.startsWith('<<<', i)) { i += 3; continue; }
+    if (s.startsWith('<<', i)) {
       const h = readHeredocStart(s, i);
       const nl = s.indexOf('\n', h.end);
       if (nl < 0) return s.length;
@@ -49,8 +50,10 @@ function skipSub(s, i) {
   return s.length;
 }
 
-export function segments(command) {
+// shell 'powershell': `\` is literal, backtick escapes (and continues lines) outside single quotes.
+export function segments(command, shell = 'bash') {
   const s = command;
+  const esc = shell === 'powershell' ? '`' : '\\';
   const out = [];
   let cur = { words: [], heredocs: [] };
   let word = null; // { text, bare } while inside a word
@@ -81,7 +84,11 @@ export function segments(command) {
       endSeg(); i++;
     } else if (c === '$' && s[i + 1] === '(' && !word) {
       i++; // `$(` outside quotes: the `(` splits
-    } else if (c === '<' && s[i + 1] === '<' && s[i + 2] !== '<') {
+    } else if (c === '#' && !word) {
+      while (i < s.length && s[i] !== '\n') i++;
+    } else if (c === '<' && s.startsWith('<<<', i)) {
+      endWord(); i += 3;
+    } else if (c === '<' && s[i + 1] === '<') {
       const h = readHeredocStart(s, i);
       endWord();
       pending.push({ delim: h.delim, strip: h.strip, seg: cur });
@@ -102,12 +109,14 @@ export function segments(command) {
       add('');
       i++;
       while (i < s.length && s[i] !== '"') {
-        if (s[i] === '\\' && (s[i + 1] === '"' || s[i + 1] === '\\')) { word.text += s[i + 1]; i += 2; }
+        if (s[i] === esc && (s[i + 1] === '"' || s[i + 1] === esc)) { word.text += s[i + 1]; i += 2; }
         else if (s[i] === '$' && s[i + 1] === '(') { const e = skipSub(s, i + 2); word.text += s.slice(i, e); i = e; }
         else word.text += s[i++];
       }
       i++;
-    } else if (c === '\\' && i + 1 < s.length) {
+    } else if (c === esc && /^\r?\n/.test(s.slice(i + 1, i + 3))) {
+      i += s[i + 1] === '\r' ? 3 : 2; // line continuation
+    } else if (c === esc && i + 1 < s.length) {
       add(s[i + 1], s[i + 1]); i += 2;
     } else {
       add(c, c); i++;

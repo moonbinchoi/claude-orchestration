@@ -23,4 +23,23 @@ assert.equal(hd[1].words[0].text, 'echo');
 assert.deepEqual(segments('cat <<-EOF\n\tx\n\tEOF')[0].heredocs, ['\tx']);
 // PowerShell here-string
 assert.deepEqual(texts(`git commit -m @'\nl1\nl2\n'@`).slice(3), ['l1\nl2']);
+// <<< here-string is not a heredoc
+const hs = segments('git commit -F - <<< "msg"\ngit push --force');
+assert.equal(hs.length, 2);
+assert.deepEqual(hs[1].words.map((x) => x.text), ['git', 'push', '--force']);
+assert.deepEqual(hs[0].heredocs, []);
+// line continuation is dropped
+assert.deepEqual(texts('git \\\n  commit -m "x"'), ['git', 'commit', '-m', 'x']);
+assert.deepEqual(texts('git \\\r\n  commit'), ['git', 'commit']);
+// comments do not open quotes
+const cm = segments("git status # don't care\ngit push --force");
+assert.deepEqual(cm.map((x) => x.words.map((y) => y.text).join(' ')), ['git status', 'git push --force']);
+// PowerShell: backslash is literal, backtick escapes
+const ps = segments('cd "C:\\repo\\"; git push --force', 'powershell');
+assert.equal(ps[0].words[1].text, 'C:\\repo\\');
+assert.deepEqual(ps[1].words.map((x) => x.text), ['git', 'push', '--force']);
+const pc = segments('git push origin main `\n  --force', 'powershell');
+assert.equal(pc.length, 1);
+assert.equal(pc[0].words.at(-1).text, '--force');
+assert.equal(segments('echo "a`"b"', 'powershell')[0].words[1].text, 'a"b');
 console.log('shell-segments: ok');
