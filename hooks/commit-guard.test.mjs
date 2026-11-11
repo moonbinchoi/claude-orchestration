@@ -70,4 +70,36 @@ r = hook(JSON.stringify({ session_id: key, tool_input: { command: 'echo hi' } })
 const akey = `${key}__ag`;
 hook(JSON.stringify({ session_id: key, agent_id: 'ag', cwd: '.', tool_input: { command: 'git commit -m x' } }));
 assert.ok(fs.existsSync(path.join(RECORD_DIR, akey))); fs.rmSync(path.join(RECORD_DIR, akey));
+// Task 5: blocked options
+const m = `-m "x\n\n${T}"`;
+const table2 = [
+  // R5
+  [`git commit --no-verify ${m}`, 'deny'], [`git commit -n ${m}`, 'deny'], [`git commit -anm "x\n\n${T}"`, 'deny'],
+  [`git commit --no-verif ${m}`, 'deny'], [`git commit --no-gpg-sign ${m}`, 'deny'],
+  [`git -c commit.gpgsign=false commit ${m}`, 'deny'], [`git -c commit.gpgSign=no commit ${m}`, 'deny'],
+  [`git -c core.hooksPath=/dev/null commit ${m}`, 'deny'], [`git -c commit.gpgsign=true commit ${m}`, 'allow'],
+  [`git commit -m "docs: ban --no-verify, --force and CLAUDECODE edits\n\n${T}"`, 'allow'],
+  // R6
+  ['git push -f', 'deny'], ['git push --force origin main', 'deny'], ['git push --force-with-lease', 'deny'],
+  ['git push --force-with-lease=main origin main', 'deny'], ['git push --force-if-includes', 'deny'],
+  ['git push --no-verify', 'deny'], ['git push origin +main', 'deny'], ['git push -uf origin main', 'deny'],
+  ['git push --forc', 'deny'], ['git push -o ci.skip origin main', 'allow'],
+  ['git push origin main', 'allow'], ['git push -u origin feat', 'allow'],
+  // R7
+  ['git branch -m a b', 'deny'], ['git branch -M a b', 'deny'], ['git branch --move a b', 'deny'],
+  ['git branch -d old', 'allow'], ['git branch --list', 'allow'],
+  // R8
+  ['gh repo edit --default-branch dev', 'deny'], ['gh repo edit --default-branch=dev', 'deny'],
+  ['gh api -X PATCH repos/o/r -f default_branch=dev', 'deny'], ['gh api repos/o/r --field default_branch=dev', 'deny'],
+  ['gh api repos/o/r/branches/a/rename -f new_name=b', 'deny'],
+  ['gh api repos/o/r --jq .default_branch', 'allow'], ['gh repo view', 'allow'],
+  // R10
+  [`CLAUDECODE= git commit ${m}`, 'deny'], [`env -u CLAUDECODE git commit ${m}`, 'deny'],
+  [`$env:CLAUDECODE=''; git commit ${m}`, 'deny'], [`unset CLAUDECODE; git commit ${m}`, 'deny'],
+  [`Remove-Item env:CLAUDECODE; git commit ${m}`, 'deny'], ['export CLAUDECODE=0 && git push origin main', 'deny'],
+  ['echo $CLAUDECODE', 'allow'],
+  // nested shells
+  [`bash -c "git push --force"`, 'deny'], [`pwsh -Command "git branch -M a b"`, 'deny'],
+];
+for (const [c, want] of table2) assert.equal(run(c).decision, want, c);
 console.log('commit-guard: ok');

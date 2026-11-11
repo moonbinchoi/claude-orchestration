@@ -16,8 +16,61 @@ const exeName = (w) => path.basename(w).toLowerCase().replace(/\.exe$/, '');
 
 // Per-subcommand rules: the one place where a git/gh invocation's subcommand and words are known.
 function checkInvocation(tool, sub, args, ctx) {
-  if (tool === 'git' && sub === 'commit') return checkCommit(args, ctx);
+  if (tool === 'git' && sub === 'commit') return [...checkCommit(args, ctx), ...blocked(args, 'commit', 'mFCct', ['--no-verify', '--no-gpg-sign'], 'n'), ...checkConfig(ctx.globalOpts)];
+  if (tool === 'git' && sub === 'push') {
+    const v = blocked(args, 'push', 'o', ['--force', '--force-with-lease', '--force-if-includes', '--no-verify'], 'f');
+    if (args.some((a) => a.startsWith('+'))) v.push('git push: + refspec forces the push.');
+    return v;
+  }
+  if (tool === 'git' && sub === 'branch') return blocked(args, 'branch', '', ['--move'], 'mM');
+  if (tool === 'gh' && sub === 'repo' && args[0] === 'edit') return blocked(args, 'gh repo edit', '', ['--default-branch'], '');
+  if (tool === 'gh' && sub === 'api') return checkApi(args);
   return [];
+}
+
+// Expands args into options: --x=v -> --x; short bundles split per letter up to a letter that takes a value (rest of word or next word is its value).
+function optionsOf(args, valueLetters) {
+  const opts = [];
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === '--') break;
+    if (a.startsWith('--')) opts.push(a.split('=')[0]);
+    else if (a.startsWith('-') && a.length > 1) {
+      for (let k = 1; k < a.length; k++) {
+        opts.push('-' + a[k]);
+        if (valueLetters.includes(a[k])) { if (k === a.length - 1) i++; break; }
+      }
+    }
+  }
+  return opts;
+}
+
+// Long options of 5+ chars that prefix a blocked long option count as that option.
+const isBlocked = (o, longs, shorts) => (o.startsWith('--') ? longs.some((b) => o === b || (o.length >= 5 && b.startsWith(o))) : shorts.includes(o[1]));
+
+function blocked(args, name, valueLetters, longs, shorts) {
+  return optionsOf(args, valueLetters).filter((o) => isBlocked(o, longs, shorts)).map((o) => `${name}: option ${o} is blocked.`);
+}
+
+function checkConfig(globalOpts) {
+  const v = [];
+  for (let i = 0; i < globalOpts.length; i++) {
+    if (globalOpts[i] !== '-c') continue;
+    const [k, ...rest] = (globalOpts[i + 1] ?? '').split('=');
+    const key = k.toLowerCase(); const val = rest.join('=').toLowerCase();
+    if (key === 'core.hookspath' || (key === 'commit.gpgsign' && /^(false|no|off|0)$/.test(val))) v.push(`git -c ${k}: disables commit hooks or signing.`);
+  }
+  return v;
+}
+
+function checkApi(args) {
+  const v = [];
+  for (let i = 0; i < args.length; i++) {
+    const m = /^(-f|-F|--field|--raw-field)(=(.*))?$/s.exec(args[i]);
+    if (m && (m[3] ?? args[++i] ?? '').startsWith('default_branch=')) v.push('gh api: changing default_branch is blocked.');
+    else if (!args[i].startsWith('-') && args[i].endsWith('/rename')) v.push('gh api: branch rename is blocked.');
+  }
+  return v;
 }
 
 function checkCommit(args, ctx) {
@@ -45,8 +98,9 @@ function take(val, isFile, ctx) {
 
 // Returns { commit: boolean, violations: string[] } for one command string.
 function scan(command, shell, cwd, readFile) {
-  const res = { commit: false, violations: [] };
+  const res = { commit: false, git: false, claudecode: false, violations: [] };
   for (const seg of segments(command, shell)) {
+    if (seg.words.some((w) => w.bare.includes('CLAUDECODE'))) res.claudecode = true;
     const words = seg.words.map((w) => w.text);
     let i = 0;
     for (; i < words.length; i++) {
@@ -69,9 +123,10 @@ function scan(command, shell, cwd, readFile) {
       if (k >= 0 && rest[k + 1] !== undefined) {
         // powershell -Command takes all remaining words as the command
         const inner = ps ? scan(rest.slice(k + 1).join(' '), 'powershell', cwd, readFile) : scan(rest[k + 1], 'bash', cwd, readFile);
-        res.commit ||= inner.commit; res.violations.push(...inner.violations);
+        res.commit ||= inner.commit; res.git ||= inner.git; res.claudecode ||= inner.claudecode; res.violations.push(...inner.violations);
       }
     } else if (tool === 'git' || tool === 'gh') {
+      if (tool === 'git') res.git = true;
       let dir = cwd; let j = 0;
       const globalOpts = []; // git global options, e.g. ['-c', 'k=v'], for subcommand rules
       if (tool === 'git') {
@@ -91,7 +146,8 @@ function scan(command, shell, cwd, readFile) {
 
 export function decide({ command, sessionKey, cwd, shell = 'bash' }, { seen, readFile }) {
   if (!GIT_OR_GH.test(command)) return { decision: 'allow' };
-  const { commit, violations } = scan(command, shell, cwd ?? '.', readFile);
+  const { commit, git, claudecode, violations } = scan(command, shell, cwd ?? '.', readFile);
+  if (git && claudecode) violations.push('CLAUDECODE: do not set or unset this environment variable.');
   if (commit && !seen(sessionKey)) {
     return { decision: 'deny', reason: [...violations, '', readFile(PROCEDURE_PATH)].join('\n').replace(/^\n/, ''), procedure: true };
   }
