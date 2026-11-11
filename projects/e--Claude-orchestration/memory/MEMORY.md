@@ -1,11 +1,11 @@
 - [Global orchestration design](global-orchestration-design.md) — rules + 6 agents: design record location, non-obvious facts on agents and cost; ~/.claude is a git repo
 - [One file, one function](one-file-one-function.md) — user rule for code layout; check before extending a file
 - [Jev router project](jev-router-project.md) — live Jev hooks, record locations, non-obvious facts; effort shadow to 2026-11-22
-- [settings.json model is user-owned](settings-model-user-owned.md) — fluid user value; never flag or commit that line
+- [settings.json model is user-owned](settings-model-user-owned.md) — fluid user value; never flag that line
 - [Report language Korean](report-language-korean.md) — prompt-file "Return in English" never overrides Korean reports to the user
 - [Knowledge layer removed](knowledge-layer-removed.md) — no knowledge layer; archive + archived GitHub repo locations; never reinstall or propose it
 - [sdlc plugin](sdlc-plugin.md) — own repo E:\Claude\sdlc-plugin, local-marketplace install, edit only via writing-skills
-- [Orchestration remote repo](orchestration-remote-repo.md) — private GitHub claude-orchestration: main is live + default (old/v1 = previous design), what is tracked/excluded; destructive git commands get denied, user runs them
+- [Orchestration remote repo](orchestration-remote-repo.md) — private GitHub claude-orchestration: main is live + default (old/v1 = previous design), what is tracked/excluded
 - [Jev usage reference](jev-usage-reference.md) — ~/.claude/jev/docs/jev-usage.md; read before any Jev call design; user-invoked /jev skill + jev-ask.mjs CLI; when the user asks to use Jev, Read ~/.claude/skills/jev/SKILL.md
 - [Harness work-unit folders](harness-design-docs-location.md) — one folder per work unit: E:\Claude\orchestration\docs\design\YYYY-MM-DD-slug (design docs + handoff + artifacts), never in ~/.claude
 - [Instruction files hold no history](instruction-files-no-history.md) — tracked rules/agents/skills/docs/memory: current instructions only; history lives in git log
