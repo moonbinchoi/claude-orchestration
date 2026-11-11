@@ -103,6 +103,7 @@ const table2 = [
   // fix round 1: attached gh api field flags
   ['gh api repos/o/r -fdefault_branch=dev', 'deny'], ['gh api repos/o/r -Fdefault_branch=dev', 'deny'],
   ['gh api repos/o/r --raw-field=default_branch=dev', 'deny'], ['gh api repos/o/r -F per_page=5', 'allow'],
+  ['gh api repos/o/r -f=default_branch=dev', 'deny'], ['gh api repos/o/r -F=default_branch=dev', 'deny'],
 ];
 for (const [c, want] of table2) assert.equal(run(c).decision, want, c);
 console.log('commit-guard: ok');

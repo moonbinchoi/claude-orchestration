@@ -68,7 +68,7 @@ function checkApi(args) {
   for (let i = 0; i < args.length; i++) {
     // value: attached (-fK=V, --field=K=V) or the next word (-f K=V, --field K=V)
     const m = /^(?:--(?:field|raw-field)(?:=(.*))?|-[fF](.+)?)$/s.exec(args[i]);
-    if (m && (m[1] ?? m[2] ?? args[++i] ?? '').startsWith('default_branch=')) v.push('gh api: changing default_branch is blocked.');
+    if (m && (m[1] ?? m[2]?.replace(/^=/, '') ?? args[++i] ?? '').startsWith('default_branch=')) v.push('gh api: changing default_branch is blocked.');
     else if (!args[i].startsWith('-') && args[i].endsWith('/rename')) v.push('gh api: branch rename is blocked.');
   }
   return v;
