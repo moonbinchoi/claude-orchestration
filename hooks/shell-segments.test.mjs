@@ -42,4 +42,11 @@ const pc = segments('git push origin main `\n  --force', 'powershell');
 assert.equal(pc.length, 1);
 assert.equal(pc[0].words.at(-1).text, '--force');
 assert.equal(segments('echo "a`"b"', 'powershell')[0].words[1].text, 'a"b');
+// PowerShell: backtick escapes any char in double quotes (`$( is not a subexpression)
+const pe = segments('echo "`$(" ; git push --force', 'powershell');
+assert.equal(pe[0].words[1].text, '$(');
+assert.deepEqual(pe[1].words.map((x) => x.text), ['git', 'push', '--force']);
+// PowerShell block comment
+const pb = segments('<# note #> git push --force', 'powershell');
+assert.deepEqual(pb.map((x) => x.words.map((y) => y.text).join(' ')), ['git push --force']);
 console.log('shell-segments: ok');

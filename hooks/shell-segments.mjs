@@ -84,6 +84,10 @@ export function segments(command, shell = 'bash') {
       endSeg(); i++;
     } else if (c === '$' && s[i + 1] === '(' && !word) {
       i++; // `$(` outside quotes: the `(` splits
+    } else if (c === '<' && shell === 'powershell' && s[i + 1] === '#') {
+      endWord();
+      const e = s.indexOf('#>', i + 2);
+      i = e < 0 ? s.length : e + 2;
     } else if (c === '#' && !word) {
       while (i < s.length && s[i] !== '\n') i++;
     } else if (c === '<' && s.startsWith('<<<', i)) {
@@ -109,7 +113,8 @@ export function segments(command, shell = 'bash') {
       add('');
       i++;
       while (i < s.length && s[i] !== '"') {
-        if (s[i] === esc && (s[i + 1] === '"' || s[i + 1] === esc)) { word.text += s[i + 1]; i += 2; }
+        if (shell === 'powershell' && s[i] === esc && i + 1 < s.length) { word.text += s[i + 1]; i += 2; }
+        else if (s[i] === esc && (s[i + 1] === '"' || s[i + 1] === esc)) { word.text += s[i + 1]; i += 2; }
         else if (s[i] === '$' && s[i + 1] === '(') { const e = skipSub(s, i + 2); word.text += s.slice(i, e); i = e; }
         else word.text += s[i++];
       }
