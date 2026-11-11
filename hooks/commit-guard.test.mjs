@@ -100,6 +100,9 @@ const table2 = [
   ['echo $CLAUDECODE', 'allow'],
   // nested shells
   [`bash -c "git push --force"`, 'deny'], [`pwsh -Command "git branch -M a b"`, 'deny'],
+  // fix round 1: attached gh api field flags
+  ['gh api repos/o/r -fdefault_branch=dev', 'deny'], ['gh api repos/o/r -Fdefault_branch=dev', 'deny'],
+  ['gh api repos/o/r --raw-field=default_branch=dev', 'deny'], ['gh api repos/o/r -F per_page=5', 'allow'],
 ];
 for (const [c, want] of table2) assert.equal(run(c).decision, want, c);
 console.log('commit-guard: ok');
