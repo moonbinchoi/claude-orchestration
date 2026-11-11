@@ -101,7 +101,7 @@ function take(val, isFile, ctx) {
 function scan(command, shell, cwd, readFile) {
   const res = { commit: false, git: false, claudecode: false, violations: [] };
   for (const seg of segments(command, shell)) {
-    if (seg.words.some((w) => w.bare.includes('CLAUDECODE'))) res.claudecode = true;
+    if (seg.words.some((w) => /CLAUDECODE/i.test(w.bare))) res.claudecode = true;
     const words = seg.words.map((w) => w.text);
     let i = 0;
     for (; i < words.length; i++) {
@@ -177,4 +177,4 @@ function main() {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
+if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) main();

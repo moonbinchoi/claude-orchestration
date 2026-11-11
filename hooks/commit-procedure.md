@@ -11,8 +11,8 @@
 - In a code commit, put `Work unit: E:/Claude/orchestration/docs/design/<YYYY-MM-DD-slug>` after the body, before the trailer.
 - Do not stage the top-level `model` and `effortLevel` lines of settings.json or any settings.json line that mentions sdlc; the working tree keeps them dirty on purpose. To stage only the intended settings.json change:
   ```sh
-  cd ~/.claude && t="$(mktemp)" && git show HEAD:settings.json > "$t"
-  # apply only the intended change to "$t" with the Edit tool
+  cd ~/.claude && t="$TEMP/settings.stage.json" && git show HEAD:settings.json > "$t"
+  # edit $TEMP/settings.stage.json with the Edit tool
   git update-index --cacheinfo 100644,"$(git hash-object -w "$t")",settings.json && git diff --cached -- settings.json
   ```
 - Hand force pushes, branch renames, default-branch changes, and other destructive git commands to the user as exact commands that start with `cd`. Afterwards verify with read-only `gh api` or `gh repo view`.

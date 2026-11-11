@@ -1,5 +1,5 @@
 // Tokenizer for Bash/PowerShell command strings: splits into segments of words (+ heredoc bodies).
-// shortcut: no backtick/comment/redirect-fd handling (`2>&1` splits at `&`), upgrade if a caller needs it.
+// shortcut: `2>&1` / `&>` split at `&`, upgrade if a caller needs it.
 
 // Read a `<<[-]DELIM` starting at i (on the `<<`). Returns { delim, strip, end } with end after the delimiter.
 function readHeredocStart(s, i) {

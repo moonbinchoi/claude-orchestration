@@ -106,4 +106,7 @@ const table2 = [
   ['gh api repos/o/r -f=default_branch=dev', 'deny'], ['gh api repos/o/r -F=default_branch=dev', 'deny'],
 ];
 for (const [c, want] of table2) assert.equal(run(c).decision, want, c);
+// fix round 2: Windows env var names are case-insensitive
+assert.equal(ps(`$env:claudecode=''; git commit -m @'\nx\n\n${T}\n'@`), 'deny');
+assert.equal(ps(`Remove-Item Env:ClaudeCode; git commit -m @'\nx\n\n${T}\n'@`), 'deny');
 console.log('commit-guard: ok');
