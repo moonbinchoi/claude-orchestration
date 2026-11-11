@@ -8,7 +8,9 @@ import { segments } from './shell-segments.mjs';
 export const RECORD_DIR = path.join(os.tmpdir(), 'claude-commit-procedure');
 export const PROCEDURE_PATH = fileURLToPath(new URL('./commit-procedure.md', import.meta.url));
 
-const TRAILER = /^Co-Authored-By:[ \t]*\S.*<[^<>\s]+>[ \t]*$/im;
+const TRAILER = /^\s*Co-Authored-By: [^<\n]+ <[^>\s]+>\s*$/m;
+const GIT_OR_GH = /git|gh/i;
+const GLOBAL_WITH_VALUE = new Set(['--git-dir', '--work-tree', '--namespace', '--exec-path', '--config-env']);
 const SKIP = new Set(['command', 'sudo', '{', '}', '!', 'then', 'do', 'else', 'time']);
 const exeName = (w) => path.basename(w).toLowerCase().replace(/\.exe$/, '');
 
@@ -65,27 +67,30 @@ function scan(command, shell, cwd, readFile) {
       const ps = tool.startsWith('p');
       const k = rest.findIndex((a) => (ps ? /^-(c|command)$/i : /^-\w*c$/).test(a));
       if (k >= 0 && rest[k + 1] !== undefined) {
-        const inner = scan(rest[k + 1], ps ? 'powershell' : 'bash', cwd, readFile);
+        // powershell -Command takes all remaining words as the command
+        const inner = ps ? scan(rest.slice(k + 1).join(' '), 'powershell', cwd, readFile) : scan(rest[k + 1], 'bash', cwd, readFile);
         res.commit ||= inner.commit; res.violations.push(...inner.violations);
       }
     } else if (tool === 'git' || tool === 'gh') {
       let dir = cwd; let j = 0;
+      const globalOpts = []; // git global options, e.g. ['-c', 'k=v'], for subcommand rules
       if (tool === 'git') {
         for (; j < rest.length && rest[j].startsWith('-'); j++) {
-          if (rest[j] === '-C') dir = path.resolve(dir, rest[++j] ?? '.');
-          else if (rest[j] === '-c') j++;
+          if (rest[j] === '-C') { globalOpts.push(rest[j], rest[j + 1]); dir = path.resolve(dir, rest[++j] ?? '.'); }
+          else if (rest[j] === '-c' || GLOBAL_WITH_VALUE.has(rest[j])) globalOpts.push(rest[j], rest[++j]);
+          else globalOpts.push(rest[j]);
         }
       }
       const sub = rest[j];
       if (tool === 'git' && sub === 'commit') res.commit = true;
-      res.violations.push(...checkInvocation(tool, sub, rest.slice(j + 1), { heredocs: seg.heredocs, dir, readFile }));
+      res.violations.push(...checkInvocation(tool, sub, rest.slice(j + 1), { heredocs: seg.heredocs, dir, globalOpts, readFile }));
     }
   }
   return res;
 }
 
 export function decide({ command, sessionKey, cwd, shell = 'bash' }, { seen, readFile }) {
-  if (!/\b(git|gh)\b/.test(command)) return { decision: 'allow' };
+  if (!GIT_OR_GH.test(command)) return { decision: 'allow' };
   const { commit, violations } = scan(command, shell, cwd ?? '.', readFile);
   if (commit && !seen(sessionKey)) {
     return { decision: 'deny', reason: [...violations, '', readFile(PROCEDURE_PATH)].join('\n').replace(/^\n/, ''), procedure: true };
@@ -98,8 +103,9 @@ function deny(reason) {
 }
 
 function main() {
-  const raw = fs.readFileSync(0, 'utf8');
+  let raw = '';
   try {
+    raw = fs.readFileSync(0, 'utf8');
     const input = JSON.parse(raw);
     const sessionKey = input.agent_id ? `${input.session_id}__${input.agent_id}` : input.session_id;
     const shell = input.tool_name === 'PowerShell' ? 'powershell' : 'bash';
@@ -110,7 +116,7 @@ function main() {
     if (r.procedure) { fs.mkdirSync(RECORD_DIR, { recursive: true }); fs.writeFileSync(path.join(RECORD_DIR, sessionKey), ''); }
     if (r.decision === 'deny') deny(r.reason);
   } catch (e) {
-    if (/\b(git|gh)\b/.test(raw)) deny(`commit-guard hook error: ${e.message}`);
+    if (GIT_OR_GH.test(raw)) deny(`commit-guard hook error: ${e.message}`);
   }
 }
 

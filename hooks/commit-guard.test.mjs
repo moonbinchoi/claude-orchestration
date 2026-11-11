@@ -42,6 +42,22 @@ const table = [
 for (const [c, want] of table) assert.equal(run(c).decision, want, c);
 assert.match(run('git commit -m x').reason, /-m/);
 
+// fix round 1
+const ps = (command) => decide({ command, sessionKey: 's', cwd: 'E:/r', shell: 'powershell' }, { seen: () => true, readFile }).decision;
+assert.equal(run('git commit -m "x\n Co-Authored-By: A <a@b.c>"').decision, 'allow');
+assert.equal(run('git commit -m "x\n\nCo-Authored-By: A<a@b.c>"').decision, 'deny');
+assert.equal(run('git commit -m "x\n\nco-authored-by: A <a@b.c>"').decision, 'deny');
+assert.equal(ps('GIT commit -m x'), 'deny'); assert.equal(ps('Git.exe commit -m x'), 'deny');
+assert.equal(ps('pwsh -NoProfile -Command git commit -m x'), 'deny');
+assert.equal(ps('pwsh -Command "git commit -m x"'), 'deny');
+assert.equal(run('git --git-dir .git commit -m x').decision, 'deny');
+assert.equal(run('git --work-tree w commit -m x').decision, 'deny');
+assert.equal(run('bash -c "git commit -m x"').decision, 'deny');
+assert.equal(run('env A=1 git commit -m x').decision, 'deny');
+assert.equal(run('git -C E:/r commit -F ok.txt', true, 'E:/other').decision, 'allow');
+assert.equal(run('git commit -F ok.txt', true, 'E:/other').decision, 'deny');
+assert.equal(run('gh pr view 3').decision, 'allow');
+
 // R13, R14 at the entry point
 const hook = (stdin) => spawnSync(process.execPath, [fileURLToPath(new URL('./commit-guard.mjs', import.meta.url))], { input: stdin, encoding: 'utf8' });
 const key = `guard-test-${process.pid}`;
@@ -51,4 +67,7 @@ assert.ok(fs.existsSync(path.join(RECORD_DIR, key))); fs.rmSync(path.join(RECORD
 r = hook('not json git'); assert.match(r.stdout, /"deny"/); assert.match(r.stdout, /hook error/);
 r = hook('not json'); assert.equal(r.stdout, ''); assert.equal(r.status, 0);
 r = hook(JSON.stringify({ session_id: key, tool_input: { command: 'echo hi' } })); assert.equal(r.stdout, ''); assert.equal(r.status, 0);
+const akey = `${key}__ag`;
+hook(JSON.stringify({ session_id: key, agent_id: 'ag', cwd: '.', tool_input: { command: 'git commit -m x' } }));
+assert.ok(fs.existsSync(path.join(RECORD_DIR, akey))); fs.rmSync(path.join(RECORD_DIR, akey));
 console.log('commit-guard: ok');
