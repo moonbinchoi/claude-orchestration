@@ -27,6 +27,19 @@
             "timeout": 30
           }
         ]
+      },
+      {
+        "matcher": "compact|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "C:/Users/skyra/.claude/hooks/commit-procedure-reset.mjs"
+            ],
+            "timeout": 5
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
@@ -54,6 +67,20 @@
               "C:/Users/skyra/.claude/jev/agent-hooks.mjs"
             ],
             "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "C:/Users/skyra/.claude/hooks/commit-guard.mjs"
+            ],
+            "timeout": 10,
+            "onFailure": "block"
           }
         ]
       }
