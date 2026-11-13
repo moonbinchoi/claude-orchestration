@@ -7,8 +7,9 @@ import { guard } from './jev-tier.mjs';
 // no dot or slash, so a type can never name a file outside agentsDir
 const TYPE = /^[A-Za-z][\w:-]{0,63}$/;
 // shortcut: section bounds are matched by heading words, so prose that repeats a heading miscounts; parse the brief structure if the count is ever applied live
-const SCOPE_START = /(?:#{2,}\s*|\*\*)scope(?:\*\*)?:?|(?:^|\n)scope:/i;
-const SCOPE_END = /(?:#{2,}\s*|\*\*|\n)(?:skills|return|context|goal)\b/i;
+// logged briefs are whitespace-collapsed, so a label also counts right after a sentence end ("... done. Scope: ...")
+const SCOPE_START = /(?:#{2,}\s*|\*\*)scope(?:\*\*)?:?|(?:^|\n|[.!?)`"']\s+)scope:/i;
+const SCOPE_END = /(?:#{2,}\s*|\*\*|\n|[.!?)`"']\s+)(?:skills|return|context|goal)\b/i;
 
 // the frontmatter `description` line, when guard() accepts it (400 characters at most, no paths, code or secrets)
 function describe(type, agentsDir) {

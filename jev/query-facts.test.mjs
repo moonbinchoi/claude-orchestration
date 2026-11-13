@@ -40,6 +40,12 @@ test('scope paths counted inside the Scope section only', () => {
   assert.deepEqual(computeFacts({ brief: '**Scope**: nothing to edit\n**Return**: a/b' }), { scope_paths: 0 });
   assert.deepEqual(computeFacts({ brief: 'Summary: no sections here a/b' }), {});
 });
+test('whitespace-collapsed brief: a Scope label after a sentence end starts the section', () => {
+  // registry briefs have no newlines, so `Scope:` follows the previous sentence on the same line
+  assert.deepEqual(computeFacts({ brief: 'summary: s goal: fix it (see src/a.mjs). scope: edit jev/x.mjs and docs/y.md only. return: write to out/r.md' }), { scope_paths: 2 });
+  assert.deepEqual(computeFacts({ brief: 'goal: done. scope: a/b only. return done or blocked with c/d' }), { scope_paths: 1 });
+  assert.deepEqual(computeFacts({ brief: 'reading a/b is out of scope: leave it' }), {});
+});
 test('agent and scope together; no arguments', () => {
   assert.deepEqual(computeFacts({ agentType: 'worker', brief: 'Scope: a/b and c/d', agentsDir: tmp() }), { agent: { type: 'worker' }, scope_paths: 2 });
   assert.deepEqual(computeFacts({}), {});
