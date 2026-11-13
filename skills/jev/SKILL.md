@@ -42,7 +42,7 @@ Write it with the Write tool into the session scratchpad, then run once (one re-
 
 - One item per thing being judged, each with its own state and questions. Put no fact of one item in another item.
 - Rewrite a Korean request as fresh English questions and named state fields. Translate no sentence.
-- Limits: items 1-10; questions per item 1-10; state fields 1-20 (string, number, or boolean values); criteria 2-10 per question (Choice: key to description; Score: ordered list, level 0 first; Noul: optional, exactly `true` and `false` keys). IDs match `^[a-z][a-z0-9_]{0,39}$`. English only.
+- Limits: items 1-10; questions per item 1-10; state fields 1-20 (string, number, or boolean values); criteria 2-10 per question (Choice: key to description; Score: ordered list, level 0 first; Noul: optional, exactly `true` and `false` keys). A description is a string, or an object of 1-5 string fields (for example covers, does_not_cover) when an option needs several kinds of guidance. IDs match `^[a-z][a-z0-9_]{0,39}$`. English only.
 - Put no paths, URLs, emails, secrets, long hex, or numbers of 4+ digits inside strings. Pass numbers as number values.
 - On `Jev failed: input_rejected: <rule>` (with or without ` at <where>`), fix your request and run once more; report a second rejection as a failure.
 

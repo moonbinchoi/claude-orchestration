@@ -42,7 +42,28 @@ test('companions default to {}', () => {
 test('bom accepted', () => assert.equal(checkRequest('\uFEFF' + str(OK)).ok, true));
 test('numbers skip content check', () => assert.equal(checkRequest(str(mut((i) => { i.state.audience = 12345; }))).ok, true));
 
-bad('too large', ' '.repeat(32769), 'file_too_large', null);
+test('object criteria description accepted', () => {
+  const r = clone(OK); r.items[0].questions.length.criteria.keep = { covers: 'Short enough for reviewers.', does_not_cover: 'Details that reviewers do not need.' };
+  assert.equal(checkRequest(JSON.stringify(r)).ok, true);
+  const n = clone(OK); n.items[0].questions.length_fits.criteria = { true: { covers: 'One option fits.' }, false: 'No option fits.' };
+  assert.equal(checkRequest(JSON.stringify(n)).ok, true);
+});
+test('object criteria: bad shapes rejected', () => {
+  for (const bad of [{}, { Covers: 'x' }, { covers: '' }, { covers: 3 }, { covers: { deep: 'x' } }, Object.fromEntries(['a', 'b', 'c', 'd', 'e', 'f'].map((k) => [k, 'x.']))]) {
+    const r = clone(OK); r.items[0].questions.length.criteria.keep = bad;
+    assert.equal(checkRequest(JSON.stringify(r)).rule, 'bad_criteria');
+  }
+});
+test('content rules reach strings inside object criteria', () => {
+  const r = clone(OK); r.items[0].questions.sev.criteria[1] = { covers: 'See C:\\Users\\me\\a.txt for it.' };
+  const out = checkRequest(JSON.stringify(r));
+  assert.equal(out.ok, false); assert.equal(out.where, 'pr_1.questions.sev.criteria.1.covers');
+});
+test('string-only request gives the same result as before', () => {
+  assert.deepEqual(checkRequest(JSON.stringify(OK)), { ok: true, items: OK.items.map((it) => ({ ...it, companions: it.companions ?? {} })) });
+});
+
+bad('too large',' '.repeat(32769), 'file_too_large', null);
 bad('not json', '{', 'not_json', null);
 bad('no items', {}, 'bad_shape', null);
 bad('11 items', { items: Array.from({ length: 11 }, (_, n) => ({ ...clone(OK.items[0]), id: `pr_${n}` })) }, 'too_many_items', null);

@@ -45,7 +45,7 @@ Box is image-only and "Dreamer-ready" (not production; format may change). It ne
 - One judgment per question. Split a compound question into separate Nouls and combine them in code; four criteria in one question is the documented anti-pattern.
 - `instructions`: one line stating the exact condition. Jev answers the question as written, not as meant.
 - `criteria`: for each option, what it covers and what it does not. Instructions and criteria must say the same thing; a contradiction confuses the model.
-- Form: `instructions` and each criteria description accept a string, object, array, or null. Start with one-line strings; use an object only when an option needs several kinds of guidance (field names are free, for example `covers`, `does_not_cover`, `examples`). `jev-ask.mjs` and the router send strings only.
+- Form: `instructions` and each criteria description accept a string, object, array, or null. Start with one-line strings; use an object only when an option needs several kinds of guidance (field names are free, for example `covers`, `does_not_cover`, `examples`). The router sends strings only; `jev-ask.mjs` also accepts an object of 1-5 string fields per description.
 - Positive, direct wording; double negatives and indirection lower accuracy.
 - A "none of the above" option often fails; prefer a companion Noul asking whether any option fits.
 - Examples only when they resemble real inputs; test with and without.

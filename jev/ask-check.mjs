@@ -12,18 +12,21 @@ const onlyKeys = (o, allowed) => Object.keys(o).every((k) => allowed.includes(k)
 class Reject { constructor(rule, where = null) { this.rule = rule; this.where = where; } }
 const fail = (rule) => { throw new Reject(rule); };
 
+// one criteria description: a non-empty string, or an object of 1-5 non-empty string fields
+const desc = (v) => text(v) || (isObj(v) && Object.keys(v).length >= 1 && Object.keys(v).length <= 5 && Object.entries(v).every(([k, s]) => ID.test(k) && text(s)));
+
 function criteriaOf(q) {
   const c = q.criteria;
   if (q.type === 'score') {
-    if (!Array.isArray(c) || c.length < 2 || c.length > 10 || !c.every(text)) fail('bad_criteria');
+    if (!Array.isArray(c) || c.length < 2 || c.length > 10 || !c.every(desc)) fail('bad_criteria');
   } else if (q.type === 'choice') {
     if (!isObj(c)) fail('bad_criteria');
     const ks = Object.keys(c);
     if (ks.length < 2 || ks.length > 10) fail('bad_criteria');
     if (!ks.every((k) => ID.test(k))) fail('bad_id');
-    if (!ks.every((k) => text(c[k]))) fail('bad_criteria');
+    if (!ks.every((k) => desc(c[k]))) fail('bad_criteria');
   } else if (c !== undefined) {
-    if (!isObj(c) || Object.keys(c).sort().join() !== 'false,true' || !text(c.true) || !text(c.false)) fail('bad_criteria');
+    if (!isObj(c) || Object.keys(c).sort().join() !== 'false,true' || !desc(c.true) || !desc(c.false)) fail('bad_criteria');
   }
 }
 
@@ -64,7 +67,10 @@ function* strings(it) {
   for (const [id, q] of Object.entries(it.questions)) {
     const at = `${it.id}.questions.${id}`;
     yield [`${at}.instructions`, q.instructions];
-    if (q.criteria !== undefined) for (const [k, v] of Object.entries(q.criteria)) yield [`${at}.criteria.${k}`, v];
+    if (q.criteria !== undefined) for (const [k, v] of Object.entries(q.criteria)) {
+      if (typeof v === 'string') yield [`${at}.criteria.${k}`, v];
+      else for (const [field, s] of Object.entries(v)) yield [`${at}.criteria.${k}.${field}`, s];
+    }
   }
 }
 
