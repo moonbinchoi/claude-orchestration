@@ -44,6 +44,13 @@ test('confidence<floor steps up one rung, caps at opus', async () => {
   const r2 = await one(task(), opts(fixed(payload({ haiku: 0.05, sonnet: 0.05, opus: 0.9 }, E, { confidence: 0.3 }))));
   assert.equal(r2.model, 'opus');
 });
+test('request body unchanged by this work unit', async () => {
+  let sent;
+  const f = mockFetch((_n, init) => { sent = init.body; return respond(payload({ haiku: 0.05, sonnet: 0.85, opus: 0.1 })); });
+  const dir = tmp(); writeFileSync(join(dir, 'config.json'), '{"modelAlias":"jev-1.14.0"}');
+  await one(task('Fix a failing unit test in one module.'), { fetchImpl: f, dir, random: () => 0.99 });
+  assert.equal(createHash('sha256').update(sent).digest('hex'), '12dcd62b46793272f3c0a292f03fce408b25498cecc29082bb7069578158723a');
+});
 test('validation rejection', async () => {
   const good = () => payload({ haiku: 0.05, sonnet: 0.85, opus: 0.1 });
   const variants = {

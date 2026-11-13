@@ -94,7 +94,7 @@ export function guard(summary) {
 const readJson = (f) => { try { return JSON.parse(readFileSync(f, 'utf8')); } catch { return null; } };
 const writeJson = (f, v) => { try { writeFileSync(f, JSON.stringify(v)); } catch { /* state IO never breaks the run */ } };
 
-function decide(model, cfg) {
+export function decide(model, cfg) {
   const p = model.probabilities;
   const ranked = TIERS.map((t) => [t, p[t]]).sort((a, b) => b[1] - a[1]);
   const margin = ranked[0][1] - ranked[1][1];

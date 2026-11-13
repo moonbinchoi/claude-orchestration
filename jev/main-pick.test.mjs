@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -38,9 +39,16 @@ test('alias from config.json', async () => {
   const f = fixed(payload()); await go({ summary: S }, f, d);
   assert.equal(f.last.model, 'jev-1.14.0');
 });
-test('low margin (also under 0.6)', async () => {
+test('close top two under 0.6: runner-up shown for p_max only', async () => {
   const { line } = await go({ summary: S }, fixed(payload({ haiku: 0.1, sonnet: 0.48, opus: 0.42 }, E, { confidence: 0.9 })));
-  assert.equal(line, 'Jev: sonnet 0.48 (opus 0.42, low margin, low confidence) / effort medium 0.80');
+  assert.equal(line, 'Jev: sonnet 0.48 (opus 0.42, low confidence) / effort medium 0.80');
+});
+test('request body unchanged by this work unit', async () => {
+  let sent;
+  const f = async (_u, init) => { sent = init.body; return respond(payload()); };
+  const d = tmp(); writeFileSync(join(d, 'config.json'), '{"modelAlias":"jev-1.14.0"}');
+  await go({ summary: 'Fix a failing unit test in one module.' }, f, d);
+  assert.equal(createHash('sha256').update(sent).digest('hex'), '0176a83a28ac15fc8be0743f13432b2a726db7089d883cb81aef4a2fdda10c48');
 });
 test('low confidence by p_max, not by confidence field', async () => {
   const { line } = await go({ summary: S }, fixed(payload({ haiku: 0.1, sonnet: 0.59, opus: 0.31 }, E, { confidence: 0.9 })));
@@ -52,7 +60,7 @@ test('p_max 0.61 with margin 0.3: no label', async () => {
 });
 test('both on effort', async () => {
   const { line } = await go({ summary: S }, fixed(payload(M, { low: 0.1, medium: 0.4, high: 0.35, xhigh: 0.1, max: 0.05 }, {}, { confidence: 0.9 })));
-  assert.equal(line, 'Jev: sonnet 0.85 / effort medium 0.40 (high 0.35, low margin, low confidence)');
+  assert.equal(line, 'Jev: sonnet 0.85 / effort medium 0.40 (high 0.35, low confidence)');
 });
 for (const [name, mk, want] of [
   ['timeout', () => (() => { const f = async (u, init) => { f.calls++; const keep = setTimeout(() => {}, 5000); return new Promise((_, rej) => init.signal.addEventListener('abort', () => { clearTimeout(keep); rej(new Error('aborted')); })); }; f.calls = 0; return f; })(), 'timeout'],
