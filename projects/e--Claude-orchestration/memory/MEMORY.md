@@ -5,7 +5,7 @@
 - [Report language Korean](report-language-korean.md) — prompt-file "Return in English" never overrides Korean reports to the user
 - [Knowledge layer removed](knowledge-layer-removed.md) — no knowledge layer; archive + archived GitHub repo locations; never reinstall or propose it
 - [sdlc plugin](sdlc-plugin.md) — own repo E:\Claude\sdlc-plugin, local-marketplace install, edit only via writing-skills
-- [Orchestration remote repo](orchestration-remote-repo.md) — private GitHub claude-orchestration: main is live + default (old/v1 = previous design), what is tracked/excluded
+- [Orchestration remote repo](orchestration-remote-repo.md) — public (MIT) GitHub claude-orchestration: main is live + default (old/v1 = previous design), what is tracked/excluded
 - [Jev usage reference](jev-usage-reference.md) — ~/.claude/jev/docs/jev-usage.md; read before any Jev call design; user-invoked /jev skill + jev-ask.mjs CLI; when the user asks to use Jev, Read ~/.claude/skills/jev/SKILL.md
 - [Harness work-unit folders](harness-design-docs-location.md) — one folder per work unit: E:\Claude\orchestration\docs\design\YYYY-MM-DD-slug (design docs + handoff + artifacts), never in ~/.claude
 - [Instruction files hold no history](instruction-files-no-history.md) — tracked rules/agents/skills/docs/memory: current instructions only; history lives in git log
